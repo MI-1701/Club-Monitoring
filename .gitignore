@@ -1,0 +1,31 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Secrets — ne jamais committer
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Donnees reelles d'athletes — ne JAMAIS committer.
+# Seules les donnees de demonstration synthetiques sont versionnees.
+data/private/
+data/real/
+*_reel.csv
+*_real.csv
+
+# Rapports generes
+reports/generated/
+*.pdf
+
+# Environnements
+.venv/
+venv/
+
+# Editeurs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3 @@
+# Outils de developpement (non requis pour le deploiement Streamlit)
+pytest>=8.0
+ruff>=0.4

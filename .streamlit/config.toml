@@ -1,0 +1,19 @@
+# Configuration Streamlit — limites et theme
+# ------------------------------------------------------------
+# Limite d'upload a 10 Mo (roadmap securite §11) : les CSV de
+# monitoring reels font quelques dizaines de Ko, donc tout
+# fichier plus lourd est suspect et rejete avant traitement.
+
+[server]
+maxUploadSize = 10
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#1B6B93"
+backgroundColor = "#FAFBFC"
+secondaryBackgroundColor = "#EEF2F6"
+textColor = "#1F2D38"
+font = "sans serif"

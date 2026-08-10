@@ -1,0 +1,8 @@
+# Configuration Ruff — regles conservatrices centrees sur les erreurs
+# reelles (imports inutilises, noms indefinis, syntaxe), sans imposer
+# de refonte stylistique du code existant.
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E4", "E7", "E9", "F"]

@@ -36,6 +36,110 @@ COULEUR_GRIS = colors.HexColor("#5F6368")
 
 
 # ------------------------------------------------------------
+# TEXTES BILINGUES DES RAPPORTS (FR / EN)
+# ------------------------------------------------------------
+
+PDF_TEXTES = {
+    "fiche_suivi": {"fr": "Fiche de suivi", "en": "Monitoring sheet"},
+    "poste": {"fr": "Poste", "en": "Position"},
+    "periode": {"fr": "Periode", "en": "Period"},
+    "prepa": {"fr": "Preparation physique",
+              "en": "Physical preparation"},
+    "progression_tests": {"fr": "Progression sur les tests physiques",
+                          "en": "Progression on physical tests"},
+    "col_test": {"fr": "Test", "en": "Test"},
+    "col_1er": {"fr": "1er releve", "en": "1st record"},
+    "col_dernier": {"fr": "Dernier", "en": "Latest"},
+    "col_evolution": {"fr": "Evolution", "en": "Change"},
+    "col_bilan": {"fr": "Bilan", "en": "Status"},
+    "progres": {"fr": "Progres", "en": "Improving"},
+    "a_surveiller": {"fr": "A surveiller", "en": "Watch"},
+    "evolution_temps": {"fr": "Evolution dans le temps",
+                        "en": "Evolution over time"},
+    "charge_acwr": {"fr": "Charge d'entrainement (ACWR)",
+                    "en": "Training load (ACWR)"},
+    "acwr_actuel": {"fr": "ACWR actuel", "en": "Current ACWR"},
+    "acwr_desc": {
+        "fr": ". Zone habituelle de reference : 0,80 a 1,30 (methode "
+              "seance-RPE, charge = RPE x duree). Indicateur descriptif "
+              "de variation de charge, pas une prediction de blessure.",
+        "en": ". Usual reference zone: 0.80 to 1.30 (session-RPE method, "
+              "load = RPE x duration). Descriptive load-variation "
+              "indicator, not an injury prediction."},
+    "acwr_insuffisant": {
+        "fr": "Historique insuffisant pour calculer l'ACWR (28 jours de "
+              "donnees minimum).",
+        "en": "Insufficient history to compute ACWR (minimum 28 days of "
+              "data)."},
+    "bien_etre_hooper": {"fr": "Bien-etre (questionnaire de Hooper)",
+                         "en": "Well-being (Hooper questionnaire)"},
+    "dernier_indice": {"fr": "Dernier indice", "en": "Latest index"},
+    "moyenne_7j": {"fr": "moyenne des 7 derniers jours",
+                   "en": "mean of the last 7 days"},
+    "hooper_echelle": {
+        "fr": ". Echelle de 4 (excellent) a 28 (tres degrade) ; sommeil, "
+              "fatigue, courbatures et stress notes de 1 a 7.",
+        "en": ". Scale from 4 (excellent) to 28 (very degraded); sleep, "
+              "fatigue, soreness and stress rated 1 to 7."},
+    "rapport_equipe": {"fr": "Rapport d'equipe", "en": "Team report"},
+    "suivi_prepa": {"fr": "Suivi de preparation physique",
+                    "en": "Physical preparation monitoring"},
+    "alertes_charge": {"fr": "Alertes de charge", "en": "Load alerts"},
+    "aucune_alerte_equipe": {
+        "fr": "Aucune alerte : toutes les joueuses sont dans leur zone "
+              "habituelle de charge.",
+        "en": "No alerts: all players are within their usual load zone."},
+    "synthese_joueuse": {"fr": "Synthese par joueuse",
+                         "en": "Per-player summary"},
+    "col_joueuse": {"fr": "Joueuse", "en": "Player"},
+    "col_statut": {"fr": "Statut", "en": "Status"},
+    "methode": {"fr": "Methode", "en": "Method"},
+    "methode_texte": {
+        "fr": "Charge d'entrainement calculee par la methode seance-RPE "
+              "(Foster) : charge = RPE (1-10) x duree en minutes. ACWR = "
+              "charge des 7 derniers jours / moyenne hebdomadaire des 28 "
+              "derniers jours. Zone habituelle de reference : 0,80 - 1,30. "
+              "L'ACWR est un signal de vigilance descriptif, pas un "
+              "predicteur individuel de blessure (Impellizzeri et al., "
+              "2020).",
+        "en": "Training load computed with the session-RPE method "
+              "(Foster): load = RPE (1-10) x duration in minutes. ACWR = "
+              "last 7 days' load / weekly average of the last 28 days. "
+              "Usual reference zone: 0.80 - 1.30. ACWR is a descriptive "
+              "monitoring signal, not an individual injury predictor "
+              "(Impellizzeri et al., 2020)."},
+}
+
+
+def pt(cle, lang="fr"):
+    """Traduit une cle de texte PDF."""
+    entree = PDF_TEXTES.get(cle, {})
+    return entree.get(lang, entree.get("fr", cle))
+
+
+# Etiquettes ACWR bilingues pour les rapports
+PDF_ETIQ_ACWR = {
+    "Donnees insuffisantes": {"fr": "Donnees insuffisantes",
+                              "en": "Insufficient data"},
+    "Charge en baisse marquee": {"fr": "Charge en baisse marquee",
+                                 "en": "Marked load decrease"},
+    "Zone habituelle": {"fr": "Zone habituelle", "en": "Usual zone"},
+    "Vigilance": {"fr": "Vigilance", "en": "Watch"},
+    "Hausse forte — vigilance accrue": {
+        "fr": "Hausse forte — vigilance accrue",
+        "en": "Sharp increase — heightened watch"},
+}
+
+
+def etiq_acwr_pdf(etiquette_fr, lang="fr"):
+    """Traduit une etiquette ACWR francaise pour le PDF."""
+    entree = PDF_ETIQ_ACWR.get(etiquette_fr)
+    if entree is None:
+        return etiquette_fr
+    return entree.get(lang, etiquette_fr)
+
+
+# ------------------------------------------------------------
 # 1. OUTILS DE MISE EN PAGE
 # ------------------------------------------------------------
 
@@ -146,7 +250,7 @@ def graphique_acwr(acwr_equipe, nom):
 # 3. RAPPORT INDIVIDUEL (fiche joueuse)
 # ------------------------------------------------------------
 
-def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None):
+def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None, lang="fr"):
     """Construit le PDF de la fiche joueuse. Retourne les octets du PDF."""
     tampon = io.BytesIO()
     document = SimpleDocTemplate(
@@ -162,17 +266,20 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None):
     date_max = donnees_joueuse["date"].max().strftime("%d/%m/%Y")
 
     elements = []
-    elements.append(Paragraph("Fiche de suivi — " + nom, titre))
+    elements.append(Paragraph(pt("fiche_suivi", lang) + " — " + nom, titre))
     elements.append(Paragraph(
-        "Poste : " + poste + "   |   Periode : " + date_min + " → " + date_max
-        + "   |   " + nom_club + " — Preparation physique", sous_titre,
+        pt("poste", lang) + " : " + poste + "   |   "
+        + pt("periode", lang) + " : " + date_min + " → " + date_max
+        + "   |   " + nom_club + " — " + pt("prepa", lang), sous_titre,
     ))
 
     # --- Tableau de progression -----------------------------
-    elements.append(Paragraph("Progression sur les tests physiques", section))
+    elements.append(Paragraph(pt("progression_tests", lang), section))
 
     progression = calculer_progression(df, nom)
-    lignes_tableau = [["Test", "1er releve", "Dernier", "Evolution", "Bilan"]]
+    lignes_tableau = [[pt("col_test", lang), pt("col_1er", lang),
+                       pt("col_dernier", lang), pt("col_evolution", lang),
+                       pt("col_bilan", lang)]]
 
     for colonne in COLONNES_TESTS:
         if colonne not in progression:
@@ -180,9 +287,9 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None):
         info = progression[colonne]
 
         if info["en_progres"]:
-            bilan = "Progres"
+            bilan = pt("progres", lang)
         else:
-            bilan = "A surveiller"
+            bilan = pt("a_surveiller", lang)
 
         signe = ""
         if info["delta"] > 0:
@@ -210,12 +317,12 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None):
     elements.append(tableau)
 
     # --- Graphique d'evolution ------------------------------
-    elements.append(Paragraph("Evolution dans le temps", section))
+    elements.append(Paragraph(pt("evolution_temps", lang), section))
     figure_tests = graphique_evolution_tests(df, nom)
     elements.append(figure_vers_image(figure_tests, largeur_cm=16.5))
 
     # --- ACWR ----------------------------------------------
-    elements.append(Paragraph("Charge d'entrainement (ACWR)", section))
+    elements.append(Paragraph(pt("charge_acwr", lang), section))
 
     acwr_equipe = calculer_acwr_equipe(df)
     donnees_acwr = acwr_equipe[acwr_equipe["nom"] == nom].dropna(subset=["acwr"])
@@ -223,19 +330,16 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None):
     if len(donnees_acwr) > 0:
         acwr_actuel = float(donnees_acwr["acwr"].iloc[-1])
         etiquette, couleur, emoji = interpreter_acwr(acwr_actuel)
+        etiquette = etiq_acwr_pdf(etiquette, lang)
         elements.append(Paragraph(
-            "ACWR actuel : <b>" + str(round(acwr_actuel, 2)) + "</b> — "
-            + etiquette + ". Zone habituelle de reference : 0,80 a 1,30 "
-            + "(methode seance-RPE, charge = RPE x duree). Indicateur "
-            + "descriptif de variation de charge, pas une prediction "
-            + "de blessure.", normal,
+            pt("acwr_actuel", lang) + " : <b>" + str(round(acwr_actuel, 2))
+            + "</b> — " + etiquette + pt("acwr_desc", lang), normal,
         ))
         figure_charge = graphique_acwr(acwr_equipe, nom)
         elements.append(figure_vers_image(figure_charge, largeur_cm=16.5))
     else:
         elements.append(Paragraph(
-            "Historique insuffisant pour calculer l'ACWR "
-            + "(28 jours de donnees minimum).", normal,
+            pt("acwr_insuffisant", lang), normal,
         ))
 
     # --- Bien-etre (si donnees disponibles) -----------------
@@ -244,7 +348,7 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None):
         if len(donnees_bien_etre) > 0:
             from calculs import calculer_hooper, interpreter_hooper
 
-            elements.append(Paragraph("Bien-etre (questionnaire de Hooper)", section))
+            elements.append(Paragraph(pt("bien_etre_hooper", lang), section))
 
             df_h = calculer_hooper(donnees_bien_etre).sort_values("date")
             derniere = df_h.iloc[-1]
@@ -255,11 +359,10 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None):
             moyenne_7j = float(sept_derniers["hooper"].mean())
 
             elements.append(Paragraph(
-                "Dernier indice : <b>" + str(hooper_actuel) + "</b> ("
-                + etiquette_h + ") — moyenne des 7 derniers jours : "
-                + str(round(moyenne_7j, 1))
-                + ". Echelle de 4 (excellent) a 28 (tres degrade) ; "
-                + "sommeil, fatigue, courbatures et stress notes de 1 a 7.",
+                pt("dernier_indice", lang) + " : <b>" + str(hooper_actuel)
+                + "</b> (" + etiquette_h + ") — " + pt("moyenne_7j", lang)
+                + " : " + str(round(moyenne_7j, 1))
+                + pt("hooper_echelle", lang),
                 normal,
             ))
 
@@ -272,7 +375,7 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None):
 # 4. RAPPORT DE SYNTHESE EQUIPE
 # ------------------------------------------------------------
 
-def generer_rapport_equipe(df, nom_club="CLUB"):
+def generer_rapport_equipe(df, nom_club="CLUB", lang="fr"):
     """Construit le PDF de synthese de l'equipe. Retourne les octets."""
     tampon = io.BytesIO()
     document = SimpleDocTemplate(
@@ -286,16 +389,16 @@ def generer_rapport_equipe(df, nom_club="CLUB"):
     date_max = df["date"].max().strftime("%d/%m/%Y")
 
     elements = []
-    elements.append(Paragraph("Rapport d'equipe — " + nom_club, titre))
+    elements.append(Paragraph(pt("rapport_equipe", lang) + " — " + nom_club, titre))
     elements.append(Paragraph(
-        "Periode : " + date_min + " → " + date_max
-        + "   |   Suivi de preparation physique", sous_titre,
+        pt("periode", lang) + " : " + date_min + " → " + date_max
+        + "   |   " + pt("suivi_prepa", lang), sous_titre,
     ))
 
     synthese, acwr_equipe = construire_synthese_equipe(df)
 
     # --- Alertes en premier (l'information la plus utile) ----
-    elements.append(Paragraph("Alertes de charge", section))
+    elements.append(Paragraph(pt("alertes_charge", lang), section))
 
     alertes = []
     for indice in range(len(synthese)):
@@ -306,11 +409,12 @@ def generer_rapport_equipe(df, nom_club="CLUB"):
 
     if len(alertes) == 0:
         elements.append(Paragraph(
-            "Aucune alerte : toutes les joueuses sont dans leur zone habituelle de charge.", normal,
+            pt("aucune_alerte_equipe", lang), normal,
         ))
     else:
         for ligne in alertes:
             etiquette, couleur, emoji = interpreter_acwr(float(ligne["ACWR"]))
+            etiquette = etiq_acwr_pdf(etiquette, lang)
             elements.append(Paragraph(
                 "• <b>" + str(ligne["Joueuse"]) + "</b> ("
                 + str(ligne["Poste"]) + ") — ACWR "
@@ -319,10 +423,11 @@ def generer_rapport_equipe(df, nom_club="CLUB"):
             ))
 
     # --- Tableau de synthese --------------------------------
-    elements.append(Paragraph("Synthese par joueuse", section))
+    elements.append(Paragraph(pt("synthese_joueuse", lang), section))
 
-    lignes_tableau = [["Joueuse", "Poste", "CMJ (cm)", "Attaque (cm)",
-                       "Sprint 10 m (s)", "ACWR", "Statut"]]
+    lignes_tableau = [[pt("col_joueuse", lang), pt("poste", lang),
+                       "CMJ (cm)", "Attaque (cm)",
+                       "Sprint 10 m (s)", "ACWR", pt("col_statut", lang)]]
     for indice in range(len(synthese)):
         ligne = synthese.iloc[indice]
 
@@ -371,14 +476,9 @@ def generer_rapport_equipe(df, nom_club="CLUB"):
     elements.append(tableau)
 
     # --- Note methodologique --------------------------------
-    elements.append(Paragraph("Methode", section))
+    elements.append(Paragraph(pt("methode", lang), section))
     elements.append(Paragraph(
-        "Charge d'entrainement calculee par la methode seance-RPE "
-        + "(Foster) : charge = RPE (1-10) x duree en minutes. "
-        + "ACWR = charge des 7 derniers jours / moyenne hebdomadaire "
-        + "des 28 derniers jours. Zone habituelle de reference : 0,80 - 1,30. "
-        + "L'ACWR est un signal de vigilance descriptif, pas un predicteur "
-        + "individuel de blessure (Impellizzeri et al., 2020).", normal,
+        pt("methode_texte", lang), normal,
     ))
 
     document.build(elements)

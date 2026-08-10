@@ -125,6 +125,22 @@ def interpreter_acwr(valeur):
     return ("Hausse forte — vigilance accrue", "#D64545", "🔴")
 
 
+def cle_acwr(valeur):
+    """Retourne (cle_etiquette, couleur, emoji) — la cle sert a la
+    traduction (i18n.etiquette_acwr). Meme classification que
+    interpreter_acwr, mais renvoie une cle stable plutot qu'un
+    libelle francais fige."""
+    if valeur is None or (isinstance(valeur, float) and np.isnan(valeur)):
+        return ("insuffisant", "#9AA0A6", "⏳")
+    if valeur < 0.80:
+        return ("baisse", "#4A90D9", "🔵")
+    if valeur <= 1.30:
+        return ("habituelle", "#2E9E5B", "🟢")
+    if valeur <= 1.50:
+        return ("vigilance", "#E8A13C", "🟠")
+    return ("hausse", "#D64545", "🔴")
+
+
 def dernier_acwr_par_joueuse(acwr_equipe):
     """Retourne un DataFrame : derniere valeur d'ACWR connue par joueuse."""
     lignes = []
@@ -550,6 +566,8 @@ def construire_alertes_individualisees(df_seances, df_bien_etre=None,
                     niveau = "attention"
                 alertes.append({
                     "nom": nom, "module": "Bien-etre", "niveau": niveau,
+                    "cle": "bien_etre",
+                    "params": {"valeur": int(valeur), "z": round(z, 1)},
                     "message": "Indice de Hooper a " + str(int(valeur))
                                + " (Z = +" + str(round(z, 1))
                                + " vs sa reference 28 j) : etat degrade.",
@@ -565,6 +583,8 @@ def construire_alertes_individualisees(df_seances, df_bien_etre=None,
         if derniere > 2.0:
             alertes.append({
                 "nom": nom, "module": "Monotonie", "niveau": "attention",
+                "cle": "monotonie",
+                "params": {"valeur": round(derniere, 1)},
                 "message": "Monotonie a " + str(round(derniere, 1))
                            + " (> 2) : entrainement trop uniforme, varier les charges.",
             })
@@ -580,6 +600,8 @@ def construire_alertes_individualisees(df_seances, df_bien_etre=None,
                 niveau = "attention"
             alertes.append({
                 "nom": nom, "module": "Contrainte", "niveau": niveau,
+                "cle": "contrainte",
+                "params": {"z": round(z, 1)},
                 "message": "Contrainte hebdomadaire inhabituellement elevee "
                            + "(Z = +" + str(round(z, 1)) + " vs sa reference 28 j).",
             })
@@ -596,6 +618,9 @@ def construire_alertes_individualisees(df_seances, df_bien_etre=None,
         if moyenne_reference > 0 and derniere_semaine > 1.5 * moyenne_reference:
             alertes.append({
                 "nom": nom, "module": "Sauts", "niveau": "attention",
+                "cle": "sauts",
+                "params": {"valeur": int(derniere_semaine),
+                           "moyenne": int(moyenne_reference)},
                 "message": "Volume de sauts a " + str(int(derniere_semaine))
                            + " cette semaine (moyenne 4 sem. : "
                            + str(int(moyenne_reference))
@@ -617,6 +642,8 @@ def construire_alertes_individualisees(df_seances, df_bien_etre=None,
         if z < -1.0:
             alertes.append({
                 "nom": nom, "module": "CMJ", "niveau": "attention",
+                "cle": "cmj",
+                "params": {"valeur": round(dernier, 1), "z": round(z, 1)},
                 "message": "CMJ a " + str(round(dernier, 1))
                            + " cm, en dessous de sa reference (Z = "
                            + str(round(z, 1)) + ") : fatigue neuromusculaire possible.",
@@ -633,6 +660,8 @@ def construire_alertes_individualisees(df_seances, df_bien_etre=None,
             if derniere_vitesse > 7.0:
                 alertes.append({
                     "nom": nom, "module": "Croissance", "niveau": "attention",
+                    "cle": "croissance",
+                    "params": {"valeur": round(derniere_vitesse, 1)},
                     "message": "Vitesse de croissance estimee a "
                                + str(round(derniere_vitesse, 1))
                                + " cm/an : pic de croissance probable, "
@@ -666,9 +695,13 @@ def construire_toutes_alertes(df_seances, df_bien_etre=None, df_anthro=None):
             else:
                 niveau = "attention"
             etiquette, couleur, emoji = interpreter_acwr(float(valeur))
+            cle_etiq, _, _ = cle_acwr(float(valeur))
             alertes.append({
                 "nom": str(ligne["Joueuse"]), "module": "ACWR",
                 "niveau": niveau,
+                "cle": "acwr",
+                "params": {"valeur": round(float(valeur), 2),
+                           "cle_etiquette": cle_etiq},
                 "message": "ACWR a " + str(round(float(valeur), 2))
                            + " : " + etiquette + ".",
             })

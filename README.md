@@ -7,7 +7,7 @@ simples fichiers CSV — nom du club personnalisable en un clic.
 
 > **Démo en ligne : [club-monitoring.streamlit.app](https://club-monitoring.streamlit.app)**
 
-![CI](https://github.com/MI-1701/Club-Monitoring/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/MI-1701/Clubs-Monitoring/actions/workflows/ci.yml/badge.svg)
 
 ---
 
@@ -50,6 +50,11 @@ Le **centre d'alertes** fusionne tous les signaux et les trie par gravité.
 
 
 ## Interface
+
+**Interface bilingue FR / EN** : un sélecteur de langue dans la barre
+latérale bascule toute l'application — pages, alertes et rapports PDF —
+entre français et anglais.
+
 
 Vue d'équipe · Fiche joueuse (vue 360 + 5 onglets) · **Saisie rapide**
 (un test pour toute l'équipe, validation atomique, export CSV) ·
@@ -114,10 +119,11 @@ ruff check .
 
 ## Confidentialité
 
-Aucune donnée n'est stockée côté serveur : les fichiers CSV sont
-traités **en mémoire, le temps de la session**, puis disparaissent.
+Les fichiers CSV importés sont traités **en mémoire pendant la
+session** ; l'application ne les persiste dans aucune base de données.
 Le club reste l'unique détenteur de ses données — un point important
-pour le suivi de jeunes athlètes.
+pour le suivi de jeunes athlètes. L'hébergement (Streamlit Community
+Cloud) fournit le HTTPS ; voir `SECURITY.md`.
 
 ## Structure du projet
 
@@ -127,6 +133,7 @@ donnees.py                Données de démo, modèles CSV, validation des import
 identites.py              Identité des joueuses entre fichiers (clés canoniques)
 securite.py               Garde-fous sur les fichiers importés (taille, encodage)
 depot.py                  Couche d'accès aux données (prête pour une base future)
+i18n.py                   Traductions FR / EN (interface, alertes, PDF)
 calculs.py                Charge séance-RPE, ACWR, progression, alertes
 rapport_pdf.py            Génération des rapports PDF (reportlab + matplotlib)
 tests/                    Tests unitaires des calculs et de la validation

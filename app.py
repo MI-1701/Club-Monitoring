@@ -25,7 +25,7 @@ from donnees import (
 )
 from calculs import (
     calculer_acwr_equipe, calculer_progression, construire_synthese_equipe,
-    extraire_tests, interpreter_acwr,
+    extraire_tests, interpreter_acwr, cle_acwr,
     calculer_hooper, interpreter_hooper, bien_etre_du_jour,
     calculer_monotonie_contrainte, calculer_sauts_hebdo,
     calculer_croissance, calculer_disponibilite,
@@ -34,6 +34,10 @@ from calculs import (
 from identites import harmoniser_donnees
 from securite import preparer_pour_validation
 from depot import DepotSession as DepotDonnees_session
+from i18n import (
+    t, traduire_alerte, etiquette_acwr, langue_courante,
+    LANGUES, LANGUE_DEFAUT,
+)
 from rapport_pdf import generer_rapport_joueuse, generer_rapport_equipe
 
 
@@ -79,21 +83,36 @@ def obtenir_donnees():
     donnees est un dictionnaire : seances (obligatoire),
     bien_etre / anthropometrie / blessures (None si absents)."""
     with st.sidebar:
+        # Selecteur de langue — en tete, pour que toute la session
+        # s'affiche dans la langue choisie.
+        codes = list(LANGUES.keys())
+        st.selectbox(
+            t("langue_label"),
+            codes,
+            index=codes.index(st.session_state.get("langue", LANGUE_DEFAUT)),
+            format_func=lambda c: LANGUES[c],
+            key="langue",
+        )
+
         nom_club = st.text_input(
-            "Nom du club / equipe",
+            t("nom_club_label"),
             value="CLUB",
             key="nom_club",
-            help="Ce nom apparait sur le dashboard et sur les rapports PDF.",
+            help=t("nom_club_help"),
         )
         if nom_club.strip() == "":
             nom_club = "Mon club"
 
         st.title(nom_club)
-        st.caption("Monitoring physique complet")
+        st.caption(t("monitoring_complet"))
 
         source = st.radio(
-            "Source des donnees",
+            t("source_donnees"),
             ["Donnees de demonstration", "Importer mes fichiers CSV"],
+            format_func=lambda v: (
+                t("source_demo") if v == "Donnees de demonstration"
+                else t("source_import")
+            ),
         )
 
         donnees = None
@@ -114,9 +133,8 @@ def obtenir_donnees():
                 return df
 
             fichier_seances = st.file_uploader(
-                "1. Seances (obligatoire)", type=["csv"],
-                help="Une ligne par seance et par joueuse : "
-                     "RPE, duree, sauts, tests. Taille max 10 Mo.",
+                t("up_seances"), type=["csv"],
+                help=t("up_seances_help"),
             )
             if fichier_seances is not None:
                 donnees["seances"] = charger_avec_securite(
@@ -124,9 +142,8 @@ def obtenir_donnees():
                 )
 
             fichier_bien_etre = st.file_uploader(
-                "2. Bien-etre quotidien (optionnel)", type=["csv"],
-                help="Questionnaire matinal : sommeil, fatigue, "
-                     "courbatures, stress (1-7).",
+                t("up_bien_etre"), type=["csv"],
+                help=t("up_bien_etre_help"),
             )
             if fichier_bien_etre is not None:
                 donnees["bien_etre"] = charger_avec_securite(
@@ -134,8 +151,8 @@ def obtenir_donnees():
                 )
 
             fichier_anthro = st.file_uploader(
-                "3. Anthropometrie (optionnel)", type=["csv"],
-                help="Mesures mensuelles : taille et masse.",
+                t("up_anthro"), type=["csv"],
+                help=t("up_anthro_help"),
             )
             if fichier_anthro is not None:
                 donnees["anthropometrie"] = charger_avec_securite(
@@ -143,8 +160,8 @@ def obtenir_donnees():
                 )
 
             fichier_blessures = st.file_uploader(
-                "4. Journal des blessures (optionnel)", type=["csv"],
-                help="Un episode par ligne : type, zone, jours d'absence.",
+                t("up_blessures"), type=["csv"],
+                help=t("up_blessures_help"),
             )
             if fichier_blessures is not None:
                 donnees["blessures"] = charger_avec_securite(
@@ -152,14 +169,14 @@ def obtenir_donnees():
                 )
 
             if donnees["seances"] is None:
-                st.info("En attente du fichier de seances — "
-                        "les donnees de demonstration restent affichees.")
+                st.info(t("attente_seances"))
                 donnees = None
             else:
-                st.success(
-                    str(len(donnees["seances"])) + " seances chargees pour "
-                    + str(donnees["seances"]["nom"].nunique()) + " joueuses."
-                )
+                st.success(t(
+                    "seances_chargees",
+                    n=len(donnees["seances"]),
+                    j=donnees["seances"]["nom"].nunique(),
+                ))
 
         mode_demo = donnees is None
         if donnees is None:
@@ -178,29 +195,42 @@ def obtenir_donnees():
         for message in orphelins:
             st.warning(message)
 
-        with st.expander("Modeles CSV a telecharger"):
+        with st.expander(t("modeles_expander")):
             st.download_button(
-                "Modele seances", data=generer_modele_csv(),
+                t("modele_seances"), data=generer_modele_csv(),
                 file_name="modele_seances.csv", mime="text/csv",
             )
             st.download_button(
-                "Modele bien-etre", data=generer_modele_bien_etre(),
+                t("modele_bien_etre"), data=generer_modele_bien_etre(),
                 file_name="modele_bien_etre.csv", mime="text/csv",
             )
             st.download_button(
-                "Modele anthropometrie", data=generer_modele_anthropometrie(),
+                t("modele_anthro"), data=generer_modele_anthropometrie(),
                 file_name="modele_anthropometrie.csv", mime="text/csv",
             )
             st.download_button(
-                "Modele blessures", data=generer_modele_blessures(),
+                t("modele_blessures"), data=generer_modele_blessures(),
                 file_name="modele_blessures.csv", mime="text/csv",
             )
 
         st.divider()
+        # Les valeurs internes restent stables (routage) ; seul
+        # l'affichage est traduit via format_func.
+        pages_cles = ["Vue d'equipe", "Fiche joueuse", "Saisie rapide",
+                      "Bien-etre", "Comparaison", "Rapports PDF", "Methode"]
+        libelles_pages = {
+            "Vue d'equipe": t("page_equipe"),
+            "Fiche joueuse": t("page_fiche"),
+            "Saisie rapide": t("page_saisie"),
+            "Bien-etre": t("page_bien_etre"),
+            "Comparaison": t("page_comparaison"),
+            "Rapports PDF": t("page_rapports"),
+            "Methode": t("page_methode"),
+        }
         page = st.radio(
-            "Navigation",
-            ["Vue d'equipe", "Fiche joueuse", "Saisie rapide",
-             "Bien-etre", "Comparaison", "Rapports PDF", "Methode"],
+            t("navigation"),
+            pages_cles,
+            format_func=lambda c: libelles_pages[c],
         )
 
     return donnees, page, nom_club, mode_demo
@@ -384,13 +414,14 @@ def afficher_centre_alertes(donnees):
     )
 
     if len(toutes_alertes) == 0:
-        st.success("Aucune alerte : tous les indicateurs sont dans les normes.")
+        st.success(t("aucune_alerte"))
         return
 
-    st.subheader("Centre d'alertes (" + str(len(toutes_alertes)) + ")")
+    st.subheader(t("centre_alertes", n=len(toutes_alertes)))
     for alerte in toutes_alertes:
-        texte = ("**" + alerte["nom"] + "** · " + alerte["module"]
-                 + " — " + alerte["message"])
+        module_tr, message_tr = traduire_alerte(alerte)
+        texte = ("**" + alerte["nom"] + "** · " + module_tr
+                 + " — " + message_tr)
         if alerte["niveau"] == "alerte":
             st.error(texte)
         else:
@@ -402,7 +433,7 @@ def afficher_centre_alertes(donnees):
 # ------------------------------------------------------------
 
 def page_vue_equipe(donnees):
-    st.header("Vue d'equipe")
+    st.header(t("equipe_titre"))
 
     df = donnees["seances"]
     synthese, acwr_equipe = construire_synthese_equipe(df)
@@ -413,20 +444,20 @@ def page_vue_equipe(donnees):
     nb_seances = len(df.dropna(subset=["rpe", "duree_min"]))
     cmj_moyen = synthese["CMJ (cm)"].mean()
 
-    colonne_a.metric("Joueuses suivies", nb_joueuses)
-    colonne_b.metric("Seances enregistrees", nb_seances)
+    colonne_a.metric(t("m_joueuses"), nb_joueuses)
+    colonne_b.metric(t("m_seances"), nb_seances)
 
     if donnees["bien_etre"] is not None:
         matrice = bien_etre_du_jour(donnees["bien_etre"])
         hooper_moyen = matrice["Hooper"].mean()
-        colonne_c.metric("Hooper moyen (dernier jour)", round(hooper_moyen, 1))
+        colonne_c.metric(t("m_hooper_jour"), round(hooper_moyen, 1))
     else:
-        colonne_c.metric("Hooper moyen", "—")
+        colonne_c.metric(t("m_hooper"), "—")
 
     if pd.notna(cmj_moyen):
-        colonne_d.metric("CMJ moyen equipe", str(round(cmj_moyen, 1)) + " cm")
+        colonne_d.metric(t("m_cmj_equipe"), str(round(cmj_moyen, 1)) + " cm")
     else:
-        colonne_d.metric("CMJ moyen equipe", "—")
+        colonne_d.metric(t("m_cmj_equipe"), "—")
 
     afficher_centre_alertes(donnees)
 
@@ -490,32 +521,26 @@ def page_vue_equipe(donnees):
 # ------------------------------------------------------------
 
 def page_bien_etre(donnees):
-    st.header("Bien-etre de l'equipe")
+    st.header(t("bien_etre_equipe"))
 
     if donnees["bien_etre"] is None:
-        st.info(
-            "Aucune donnee de bien-etre importee. Telechargez le modele "
-            "dans la barre laterale : chaque joueuse note chaque matin "
-            "son sommeil, sa fatigue, ses courbatures et son stress "
-            "de 1 (tres bien) a 7 (tres mauvais)."
-        )
+        st.info(t("bien_etre_vide"))
         return
 
     matrice = bien_etre_du_jour(donnees["bien_etre"])
 
-    st.subheader("Matrice du jour")
-    st.caption("Dernieres reponses de chaque joueuse. "
-               "Echelle 1 (tres bien) a 7 (tres mauvais).")
+    st.subheader(t("matrice_jour"))
+    st.caption(t("matrice_caption"))
     st.dataframe(matrice, use_container_width=True, hide_index=True)
 
-    st.subheader("Evolution individuelle")
+    st.subheader(t("evolution_individuelle"))
     noms_disponibles = sorted(donnees["bien_etre"]["nom"].unique())
-    nom = st.selectbox("Joueuse", noms_disponibles)
+    nom = st.selectbox(t("joueuse"), noms_disponibles)
     st.plotly_chart(tracer_hooper(donnees["bien_etre"], nom),
                     use_container_width=True)
 
     # Detail des 4 composantes sur les 14 derniers jours
-    st.subheader("Detail des 14 derniers jours")
+    st.subheader(t("detail_14j"))
     df = donnees["bien_etre"]
     donnees_joueuse = df[df["nom"] == nom].sort_values("date").tail(14)
     if len(donnees_joueuse) > 0:
@@ -543,15 +568,15 @@ def page_bien_etre(donnees):
 # ------------------------------------------------------------
 
 def page_fiche_joueuse(donnees):
-    st.header("Fiche joueuse")
+    st.header(t("fiche_titre"))
 
     df = donnees["seances"]
     noms_disponibles = sorted(df["nom"].unique())
-    nom = st.selectbox("Choisir une joueuse", noms_disponibles)
+    nom = st.selectbox(t("choisir_joueuse"), noms_disponibles)
 
     donnees_joueuse = df[df["nom"] == nom]
     poste = donnees_joueuse["poste"].iloc[-1]
-    st.caption("Poste : " + poste)
+    st.caption(t("poste") + " : " + poste)
 
     # --- Synthese instantanee (vue 360) ---------------------
     # Etat du jour de la joueuse avant tout detail : charge,
@@ -570,11 +595,12 @@ def page_fiche_joueuse(donnees):
     donnees_acwr = acwr_equipe[acwr_equipe["nom"] == nom].dropna(subset=["acwr"])
     if len(donnees_acwr) > 0:
         acwr_actuel = float(donnees_acwr["acwr"].iloc[-1])
-        etiquette_acwr, couleur_acwr, emoji_acwr = interpreter_acwr(acwr_actuel)
-        colonne_a.metric("ACWR", emoji_acwr + " " + str(round(acwr_actuel, 2)),
-                         help=etiquette_acwr)
+        cle_etiq, couleur_acwr, emoji_acwr = cle_acwr(acwr_actuel)
+        colonne_a.metric(t("m_acwr"), emoji_acwr + " " + str(round(acwr_actuel, 2)),
+                         help=etiquette_acwr(cle_etiq))
     else:
-        colonne_a.metric("ACWR", "—", help="Historique insuffisant (28 jours)")
+        colonne_a.metric(t("m_acwr"), "—",
+                         help=t("m_acwr_help_insuffisant"))
 
     if donnees["bien_etre"] is not None:
         df_hooper = calculer_hooper(donnees["bien_etre"])
@@ -582,48 +608,48 @@ def page_fiche_joueuse(donnees):
         if len(reponses) > 0:
             hooper_jour = int(reponses["hooper"].iloc[-1])
             etiquette_h, emoji_h = interpreter_hooper(float(hooper_jour))
-            colonne_b.metric("Bien-etre (Hooper)",
+            colonne_b.metric(t("m_bien_etre_hooper"),
                              emoji_h + " " + str(hooper_jour),
-                             help=etiquette_h + " — echelle 4 (excellent) a 28")
+                             help=etiquette_h + " — " + t("hooper_echelle"))
         else:
-            colonne_b.metric("Bien-etre (Hooper)", "—")
+            colonne_b.metric(t("m_bien_etre_hooper"), "—")
     else:
-        colonne_b.metric("Bien-etre (Hooper)", "—")
+        colonne_b.metric(t("m_bien_etre_hooper"), "—")
 
     if donnees["blessures"] is not None:
         disponibilite = calculer_disponibilite(donnees["blessures"], df)
         ligne_dispo = disponibilite[disponibilite["Joueuse"] == nom]
         if len(ligne_dispo) > 0:
             colonne_c.metric(
-                "Disponibilite",
+                t("disponibilite"),
                 str(ligne_dispo["Disponibilite (%)"].iloc[0]) + " %",
-                help=str(ligne_dispo["Episodes"].iloc[0]) + " episode(s), "
-                     + str(ligne_dispo["Jours d'absence"].iloc[0])
-                     + " jour(s) d'absence",
+                help=t("episodes_help",
+                       e=ligne_dispo["Episodes"].iloc[0],
+                       j=ligne_dispo["Jours d'absence"].iloc[0]),
             )
         else:
-            colonne_c.metric("Disponibilite", "—")
+            colonne_c.metric(t("disponibilite"), "—")
     else:
-        colonne_c.metric("Disponibilite", "—")
+        colonne_c.metric(t("disponibilite"), "—")
 
-    colonne_d.metric("Alertes actives", str(len(alertes_joueuse)))
+    colonne_d.metric(t("m_alertes_actives"), str(len(alertes_joueuse)))
 
     if len(alertes_joueuse) > 0:
         for alerte in alertes_joueuse:
-            texte = alerte["module"] + " — " + alerte["message"]
+            module_tr, message_tr = traduire_alerte(alerte)
+            texte = module_tr + " — " + message_tr
             if alerte["niveau"] == "alerte":
                 st.error(texte)
             else:
                 st.warning(texte)
     else:
-        st.caption("Aucune alerte active pour cette joueuse.")
+        st.caption(t("aucune_alerte_joueuse"))
 
     # --- Progression sur les tests --------------------------
     progression = calculer_progression(df, nom)
 
     if len(progression) == 0:
-        st.info("Pas encore assez de tests pour mesurer une progression "
-                "(2 releves minimum par indicateur).")
+        st.info(t("progression_insuffisante"))
     else:
         # Liste ordonnee des tests disponibles pour cette joueuse
         tests_presents = []
@@ -658,12 +684,13 @@ def page_fiche_joueuse(donnees):
 
     # --- Onglets thematiques --------------------------------
     onglet_tests, onglet_charge, onglet_bien_etre, onglet_corps, onglet_blessures = st.tabs(
-        ["Tests", "Charge", "Bien-etre", "Croissance", "Blessures"]
+        [t("onglet_tests"), t("onglet_charge"), t("onglet_bien_etre"),
+         t("onglet_croissance"), t("onglet_blessures")]
     )
 
     with onglet_tests:
         choix_test = st.selectbox(
-            "Indicateur", COLONNES_TESTS,
+            t("indicateur"), COLONNES_TESTS,
             format_func=LIBELLES_TESTS.get,
         )
         st.plotly_chart(
@@ -675,8 +702,7 @@ def page_fiche_joueuse(donnees):
         donnees_acwr = acwr_equipe[acwr_equipe["nom"] == nom].dropna(subset=["acwr"])
 
         if len(donnees_acwr) == 0:
-            st.info("Historique insuffisant pour l'ACWR "
-                    "(28 jours de seances minimum).")
+            st.info(t("acwr_insuffisant"))
         else:
             acwr_actuel = float(donnees_acwr["acwr"].iloc[-1])
             etiquette, couleur, emoji = interpreter_acwr(acwr_actuel)
@@ -694,28 +720,27 @@ def page_fiche_joueuse(donnees):
             st.plotly_chart(tracer_sauts(sauts_hebdo, nom),
                             use_container_width=True)
         else:
-            st.info("Pas de donnees de sauts pour cette joueuse "
-                    "(colonne « sauts » du fichier seances).")
+            st.info(t("pas_sauts"))
 
     with onglet_bien_etre:
         if donnees["bien_etre"] is None:
-            st.info("Aucune donnee de bien-etre importee.")
+            st.info(t("aucun_bien_etre"))
         else:
             df_be = donnees["bien_etre"]
             if len(df_be[df_be["nom"] == nom]) == 0:
-                st.info("Pas de reponses pour cette joueuse.")
+                st.info(t("pas_reponses_joueuse"))
             else:
                 st.plotly_chart(tracer_hooper(df_be, nom),
                                 use_container_width=True)
 
     with onglet_corps:
         if donnees["anthropometrie"] is None:
-            st.info("Aucune donnee anthropometrique importee.")
+            st.info(t("aucune_anthro"))
         else:
             croissance = calculer_croissance(donnees["anthropometrie"])
             donnees_croissance = croissance[croissance["nom"] == nom]
             if len(donnees_croissance) == 0:
-                st.info("Pas de mesures pour cette joueuse.")
+                st.info(t("pas_mesures_joueuse"))
             else:
                 derniere_vitesse = donnees_croissance["vitesse_cm_an"].dropna()
                 if len(derniere_vitesse) > 0:
@@ -735,11 +760,11 @@ def page_fiche_joueuse(donnees):
 
     with onglet_blessures:
         if donnees["blessures"] is None:
-            st.info("Aucun journal de blessures importe.")
+            st.info(t("aucun_journal_blessures"))
         else:
             episodes = donnees["blessures"][donnees["blessures"]["nom"] == nom]
             if len(episodes) == 0:
-                st.success("Aucun episode enregistre pour cette joueuse.")
+                st.success(t("aucun_episode_joueuse"))
             else:
                 affichage = episodes.copy()
                 affichage["date_debut"] = affichage["date_debut"].dt.strftime("%d/%m/%Y")
@@ -758,17 +783,17 @@ def page_fiche_joueuse(donnees):
 # ------------------------------------------------------------
 
 def page_comparaison(donnees):
-    st.header("Comparaison entre joueuses")
+    st.header(t("comparaison_titre"))
 
     df = donnees["seances"]
     noms_disponibles = sorted(df["nom"].unique())
     noms_choisis = st.multiselect(
-        "Joueuses a comparer", noms_disponibles,
+        t("joueuses_comparer"), noms_disponibles,
         default=noms_disponibles[:3],
     )
 
     if len(noms_choisis) < 2:
-        st.info("Selectionnez au moins deux joueuses.")
+        st.info(t("min_deux_joueuses"))
         return
 
     choix_test = st.selectbox(
@@ -781,7 +806,7 @@ def page_comparaison(donnees):
         use_container_width=True,
     )
 
-    st.subheader("Dernier releve par joueuse")
+    st.subheader(t("dernier_releve"))
 
     lignes = []
     for nom in noms_choisis:
@@ -808,11 +833,8 @@ def page_comparaison(donnees):
 # ------------------------------------------------------------
 
 def page_rapports(donnees, nom_club):
-    st.header("Rapports PDF")
-    st.write(
-        "Generez un rapport pret a partager avec le staff, "
-        "les parents ou la direction du club."
-    )
+    st.header(t("rapports_titre"))
+    st.write(t("rapports_intro"))
 
     df = donnees["seances"]
     nom_fichier_club = nom_club.lower().strip().replace(" ", "_")
@@ -820,14 +842,15 @@ def page_rapports(donnees, nom_club):
     colonne_gauche, colonne_droite = st.columns(2)
 
     with colonne_gauche:
-        st.subheader("Fiche individuelle")
+        st.subheader(t("fiche_individuelle"))
         noms_disponibles = sorted(df["nom"].unique())
-        nom = st.selectbox("Joueuse", noms_disponibles)
+        nom = st.selectbox(t("joueuse"), noms_disponibles)
 
-        if st.button("Generer la fiche", type="primary"):
-            with st.spinner("Creation du PDF en cours..."):
+        if st.button(t("generer_fiche"), type="primary"):
+            with st.spinner(t("creation_pdf")):
                 st.session_state["pdf_joueuse"] = generer_rapport_joueuse(
-                    df, nom, nom_club, donnees["bien_etre"]
+                    df, nom, nom_club, donnees["bien_etre"],
+                    lang=langue_courante(),
                 )
                 st.session_state["pdf_joueuse_nom"] = nom
 
@@ -836,25 +859,25 @@ def page_rapports(donnees, nom_club):
         if (st.session_state.get("pdf_joueuse") is not None
                 and st.session_state.get("pdf_joueuse_nom") == nom):
             st.download_button(
-                "📄 Telecharger la fiche de " + nom,
+                t("telecharger_fiche", nom=nom),
                 data=st.session_state["pdf_joueuse"],
                 file_name="fiche_" + nom.replace(" ", "_") + ".pdf",
                 mime="application/pdf",
             )
 
     with colonne_droite:
-        st.subheader("Synthese d'equipe")
-        st.write("Tableau complet + alertes de charge, sur une page.")
+        st.subheader(t("synthese_equipe"))
+        st.write(t("synthese_equipe_desc"))
 
-        if st.button("Generer la synthese", type="primary"):
-            with st.spinner("Creation du PDF en cours..."):
+        if st.button(t("generer_synthese"), type="primary"):
+            with st.spinner(t("creation_pdf")):
                 st.session_state["pdf_equipe"] = generer_rapport_equipe(
-                    df, nom_club
+                    df, nom_club, lang=langue_courante(),
                 )
 
         if st.session_state.get("pdf_equipe") is not None:
             st.download_button(
-                "📄 Telecharger la synthese d'equipe",
+                t("telecharger_synthese"),
                 data=st.session_state["pdf_equipe"],
                 file_name="synthese_equipe_" + nom_fichier_club + ".pdf",
                 mime="application/pdf",
@@ -942,16 +965,12 @@ charge de sauts).
 # ------------------------------------------------------------
 
 def page_saisie_rapide(depot, mode_demo, nom_club):
-    st.header("Saisie rapide d'un test")
-    st.write(
-        "Enregistrez un test pour toute l'equipe en une fois. "
-        "La validation est atomique : tant qu'une valeur est "
-        "invalide, rien n'est enregistre."
-    )
+    st.header(t("saisie_titre"))
+    st.write(t("saisie_intro"))
 
     noms = depot.noms_joueuses()
     if len(noms) == 0:
-        st.info("Aucune joueuse disponible. Chargez d'abord des seances.")
+        st.info(t("saisie_aucune_joueuse"))
         return
 
     postes = depot.postes_par_joueuse()
@@ -959,7 +978,7 @@ def page_saisie_rapide(depot, mode_demo, nom_club):
     colonne_gauche, colonne_droite = st.columns(2)
     with colonne_gauche:
         libelle_choisi = st.selectbox(
-            "Test a saisir",
+            t("test_a_saisir"),
             [LIBELLES_TESTS[c] for c in COLONNES_TESTS],
         )
         colonne_test = None
@@ -968,11 +987,9 @@ def page_saisie_rapide(depot, mode_demo, nom_club):
                 colonne_test = cle
                 break
     with colonne_droite:
-        date_test = st.date_input("Date du test", value=pd.Timestamp.today())
+        date_test = st.date_input(t("date_test"), value=pd.Timestamp.today())
 
-    st.caption(
-        "Laissez une cellule vide pour une joueuse non testee ce jour."
-    )
+    st.caption(t("saisie_cellule_vide"))
 
     # Grille pre-remplie avec l'effectif ; l'entraineur ne saisit
     # que la colonne « Resultat ».
@@ -988,8 +1005,8 @@ def page_saisie_rapide(depot, mode_demo, nom_club):
         disabled=["Joueuse", "Poste"],
         column_config={
             "Resultat": st.column_config.NumberColumn(
-                "Resultat (" + libelle_choisi + ")",
-                help="Valeur mesuree ; vide si non teste.",
+                t("resultat") + " (" + libelle_choisi + ")",
+                help=t("resultat_help"),
                 format="%.2f",
             )
         },
@@ -1014,22 +1031,16 @@ def page_saisie_rapide(depot, mode_demo, nom_club):
     st.divider()
 
     if erreurs:
-        st.error(
-            "⚠ " + str(len(valides)) + "/" + str(nb_saisis)
-            + " valeur(s) valide(s) — corrigez avant d'enregistrer :"
-        )
+        st.error(t("saisie_erreurs", ok=len(valides), total=nb_saisis))
         for message in erreurs:
             st.write("• " + message)
         return
 
     if nb_saisis == 0:
-        st.info("Saisissez au moins un resultat pour continuer.")
+        st.info(t("saisie_min_un"))
         return
 
-    st.success(
-        "✓ " + str(len(valides)) + "/" + str(nb_saisis)
-        + " valeur(s) valide(s). Apercu avant enregistrement :"
-    )
+    st.success(t("saisie_ok", ok=len(valides), total=nb_saisis))
 
     apercu = pd.DataFrame([{
         "Joueuse": v["nom"],
@@ -1038,7 +1049,7 @@ def page_saisie_rapide(depot, mode_demo, nom_club):
     } for v in valides])
     st.dataframe(apercu, use_container_width=True, hide_index=True)
 
-    if st.button("Enregistrer ces resultats", type="primary"):
+    if st.button(t("saisie_enregistrer"), type="primary"):
         lignes_a_ajouter = []
         for v in valides:
             ligne = {
@@ -1054,27 +1065,17 @@ def page_saisie_rapide(depot, mode_demo, nom_club):
 
     if st.session_state.get("saisie_confirmee"):
         nb = st.session_state["saisie_confirmee"]
-        st.success(
-            str(nb) + " resultat(s) ajoute(s) a la session. "
-            "Ils apparaissent immediatement dans les fiches et alertes."
-        )
+        st.success(t("saisie_confirmee", n=nb))
         if mode_demo:
-            st.warning(
-                "Mode demonstration : ces valeurs restent en memoire "
-                "de session. Telechargez le CSV mis a jour pour les "
-                "conserver et le recharger ensuite en mode import."
-            )
+            st.warning(t("saisie_demo_avert"))
         nom_fichier = nom_club.lower().strip().replace(" ", "_")
         st.download_button(
-            "📥 Telecharger le CSV seances mis a jour",
+            t("saisie_telecharger"),
             data=st.session_state.get("export_pret", b""),
             file_name="seances_" + nom_fichier + ".csv",
             mime="text/csv",
         )
-        st.caption(
-            "Rechargez ce fichier via « Importer mes fichiers CSV » "
-            "a la prochaine session pour retrouver ces resultats."
-        )
+        st.caption(t("saisie_recharger"))
 
 
 def principal():
@@ -1083,9 +1084,7 @@ def principal():
 
     if mode_demo:
         st.info(
-            "🟦 **Donnees de demonstration** — joueuses fictives. "
-            "Passez a « Importer mes fichiers CSV » dans la barre "
-            "laterale pour analyser vos propres donnees."
+            t("banniere_demo")
         )
 
     if page == "Vue d'equipe":
@@ -1104,18 +1103,10 @@ def principal():
         page_methode()
 
     st.sidebar.divider()
-    with st.sidebar.expander("Confidentialite & securite"):
-        st.markdown(
-            "Les donnees importees sont **traitees en memoire pendant "
-            "la session** ; l'application ne les persiste dans aucune "
-            "base de donnees. Import limite a 10 Mo, fichiers valides "
-            "avant analyse. L'hebergement (Streamlit Community Cloud) "
-            "fournit le HTTPS.\n\n"
-            "Ne pas deposer de donnees reelles d'athletes mineures sur "
-            "la demonstration publique."
-        )
+    with st.sidebar.expander(t("confid_titre")):
+        st.markdown(t("confid_texte"))
     st.sidebar.caption(
-        "Concu par Ilias Moudrikah · seance-RPE · ACWR · Hooper · Z-scores"
+        t("signature")
     )
 
 

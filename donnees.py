@@ -268,7 +268,7 @@ def valider_csv(fichier):
             )
 
     # Conversion des dates
-    df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=False)
+    df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
     nb_dates_invalides = int(df["date"].isna().sum())
     if nb_dates_invalides > 0:
         avertissements.append(

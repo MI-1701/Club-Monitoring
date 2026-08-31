@@ -9,6 +9,8 @@ simples fichiers CSV — nom du club personnalisable en un clic.
 
 ![CI](https://github.com/MI-1701/Clubs-Monitoring/actions/workflows/ci.yml/badge.svg)
 
+![Coverage](https://codecov.io/gh/MI-1701/Clubs-Monitoring/branch/main/graph/badge.svg)
+
 ---
 
 ## Les 6 modules

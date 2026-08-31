@@ -82,6 +82,11 @@ def obtenir_donnees():
     """Retourne (donnees, page, nom_club).
     donnees est un dictionnaire : seances (obligatoire),
     bien_etre / anthropometrie / blessures (None si absents)."""
+
+    # Detection du parametre URL ?demo=true pour auto-load
+    params = st.query_params
+    auto_demo = params.get("demo", "false").lower() == "true"
+
     with st.sidebar:
         # Selecteur de langue — en tete, pour que toute la session
         # s'affiche dans la langue choisie.
@@ -113,6 +118,7 @@ def obtenir_donnees():
                 t("source_demo") if v == "Donnees de demonstration"
                 else t("source_import")
             ),
+            index=0 if auto_demo else None,
         )
 
         donnees = None
@@ -181,6 +187,8 @@ def obtenir_donnees():
         mode_demo = donnees is None
         if donnees is None:
             donnees = charger_demo()
+            if auto_demo:
+                st.success(t("demo_auto_chargee"))
 
         # Harmonisation des identites entre fichiers : les variantes
         # d'un meme nom (casse, accents, ponctuation) sont regroupees,
@@ -240,9 +248,13 @@ def obtenir_donnees():
 # GRAPHIQUES PLOTLY REUTILISABLES
 # ------------------------------------------------------------
 
-def tracer_acwr(acwr_equipe, nom):
+def tracer_acwr(acwr_equipe, nom, lang="fr"):
     """Courbe ACWR interactive avec zones colorees."""
     donnees = acwr_equipe[acwr_equipe["nom"] == nom].dropna(subset=["acwr"])
+
+    titre = {"fr": "Ratio charge aigue / chronique",
+             "en": "Acute / chronic load ratio"}
+    hover_label = {"fr": "ACWR", "en": "ACWR"}
 
     figure = go.Figure()
     figure.add_hrect(y0=0.0, y1=0.8, fillcolor="#4A90D9", opacity=0.10, line_width=0)
@@ -253,15 +265,15 @@ def tracer_acwr(acwr_equipe, nom):
     if len(donnees) > 0:
         figure.add_trace(go.Scatter(
             x=donnees["date"], y=donnees["acwr"],
-            mode="lines", name="ACWR",
+            mode="lines", name=hover_label.get(lang, "ACWR"),
             line=dict(color="#12303F", width=2),
-            hovertemplate="%{x|%d/%m/%Y}<br>ACWR : %{y:.2f}<extra></extra>",
+            hovertemplate="%{x|%d/%m/%Y}<br>" + hover_label.get(lang, "ACWR") + " : %{y:.2f}<extra></extra>",
         ))
 
     figure.update_layout(
         height=300, margin=dict(l=10, r=10, t=30, b=10),
         yaxis=dict(range=[0, 2.2], title="ACWR"),
-        title="Ratio charge aigue / chronique",
+        title=titre.get(lang, titre["fr"]),
         showlegend=False,
     )
     return figure
@@ -294,10 +306,15 @@ def tracer_evolution_test(df, noms, colonne):
     return figure
 
 
-def tracer_hooper(df_bien_etre, nom):
+def tracer_hooper(df_bien_etre, nom, lang="fr"):
     """Courbe de l'indice de Hooper avec zones indicatives."""
     df = calculer_hooper(df_bien_etre)
     donnees = df[df["nom"] == nom].sort_values("date")
+
+    titre = {"fr": "Bien-etre quotidien (plus bas = mieux)",
+             "en": "Daily well-being (lower = better)"}
+    hover_label = {"fr": "Hooper", "en": "Hooper"}
+    yaxis_label = {"fr": "Indice de Hooper", "en": "Hooper index"}
 
     figure = go.Figure()
     figure.add_hrect(y0=4, y1=13, fillcolor="#2E9E5B", opacity=0.10, line_width=0)
@@ -308,52 +325,65 @@ def tracer_hooper(df_bien_etre, nom):
         figure.add_trace(go.Scatter(
             x=donnees["date"], y=donnees["hooper"],
             mode="lines", line=dict(color="#12303F", width=2),
-            hovertemplate="%{x|%d/%m/%Y}<br>Hooper : %{y}<extra></extra>",
+            hovertemplate="%{x|%d/%m/%Y}<br>" + hover_label.get(lang, "Hooper") + " : %{y}<extra></extra>",
         ))
 
     figure.update_layout(
         height=300, margin=dict(l=10, r=10, t=30, b=10),
-        yaxis=dict(range=[4, 28], title="Indice de Hooper"),
-        title="Bien-etre quotidien (plus bas = mieux)",
+        yaxis=dict(range=[4, 28], title=yaxis_label.get(lang, yaxis_label["fr"])),
+        title=titre.get(lang, titre["fr"]),
         showlegend=False,
     )
     return figure
 
 
-def tracer_monotonie_contrainte(monotonie, nom):
+def tracer_monotonie_contrainte(monotonie, nom, lang="fr"):
     """Deux courbes : monotonie et contrainte (axes separes)."""
     donnees = monotonie[monotonie["nom"] == nom].dropna(subset=["monotonie"])
+
+    titre = {"fr": "Monotonie et contrainte (Foster)",
+             "en": "Monotony and strain (Foster)"}
+    label_monotonie = {"fr": "Monotonie", "en": "Monotony"}
+    label_contrainte = {"fr": "Contrainte", "en": "Strain"}
+    yaxis1_label = {"fr": "Monotonie", "en": "Monotony"}
+    yaxis2_label = {"fr": "Contrainte (UA)", "en": "Strain (AU)"}
+    annotation_text = {"fr": "Monotonie 2.0", "en": "Monotony 2.0"}
 
     figure = go.Figure()
     if len(donnees) > 0:
         figure.add_trace(go.Scatter(
             x=donnees["date"], y=donnees["monotonie"],
-            mode="lines", name="Monotonie",
+            mode="lines", name=label_monotonie.get(lang, label_monotonie["fr"]),
             line=dict(color="#1B6B93", width=2),
-            hovertemplate="%{x|%d/%m/%Y}<br>Monotonie : %{y:.2f}<extra></extra>",
+            hovertemplate="%{x|%d/%m/%Y}<br>" + label_monotonie.get(lang, "Monotonie") + " : %{y:.2f}<extra></extra>",
         ))
         figure.add_trace(go.Scatter(
             x=donnees["date"], y=donnees["contrainte"],
-            mode="lines", name="Contrainte", yaxis="y2",
+            mode="lines", name=label_contrainte.get(lang, label_contrainte["fr"]), yaxis="y2",
             line=dict(color="#C77B3F", width=2),
-            hovertemplate="%{x|%d/%m/%Y}<br>Contrainte : %{y:.0f}<extra></extra>",
+            hovertemplate="%{x|%d/%m/%Y}<br>" + label_contrainte.get(lang, "Contrainte") + " : %{y:.0f}<extra></extra>",
         ))
         figure.add_hline(y=2.0, line_dash="dot", line_color="#D64545",
-                         annotation_text="Monotonie 2.0")
+                         annotation_text=annotation_text.get(lang, annotation_text["fr"]))
 
     figure.update_layout(
         height=320, margin=dict(l=10, r=10, t=30, b=10),
-        yaxis=dict(title="Monotonie"),
-        yaxis2=dict(title="Contrainte (UA)", overlaying="y", side="right"),
-        title="Monotonie et contrainte (Foster)",
+        yaxis=dict(title=yaxis1_label.get(lang, yaxis1_label["fr"])),
+        yaxis2=dict(title=yaxis2_label.get(lang, yaxis2_label["fr"]), overlaying="y", side="right"),
+        title=titre.get(lang, titre["fr"]),
         legend=dict(orientation="h", y=1.15),
     )
     return figure
 
 
-def tracer_sauts(sauts_hebdo, nom):
+def tracer_sauts(sauts_hebdo, nom, lang="fr"):
     """Barres du volume hebdomadaire de sauts."""
     donnees = sauts_hebdo[sauts_hebdo["nom"] == nom]
+
+    titre = {"fr": "Volume de sauts hebdomadaire",
+             "en": "Weekly jump volume"}
+    hover_label = {"fr": "sauts", "en": "jumps"}
+    yaxis_label = {"fr": "Sauts / semaine", "en": "Jumps / week"}
 
     figure = go.Figure()
     if len(donnees) > 0:
@@ -361,20 +391,26 @@ def tracer_sauts(sauts_hebdo, nom):
             x=donnees["semaine"], y=donnees["sauts"],
             marker_color="#1B6B93", marker_line_color="#12303F",
             marker_line_width=1,
-            hovertemplate="Semaine du %{x|%d/%m}<br>%{y} sauts<extra></extra>",
+            hovertemplate="Semaine du %{x|%d/%m}<br>%{y} " + hover_label.get(lang, "sauts") + "<extra></extra>",
         ))
 
     figure.update_layout(
         height=280, margin=dict(l=10, r=10, t=30, b=10),
-        yaxis=dict(title="Sauts / semaine"),
-        title="Volume de sauts hebdomadaire",
+        yaxis=dict(title=yaxis_label.get(lang, yaxis_label["fr"])),
+        title=titre.get(lang, titre["fr"]),
     )
     return figure
 
 
-def tracer_croissance(croissance, nom):
+def tracer_croissance(croissance, nom, lang="fr"):
     """Courbe de taille avec vitesse estimee en infobulle."""
     donnees = croissance[croissance["nom"] == nom].sort_values("date")
+
+    titre = {"fr": "Croissance", "en": "Growth"}
+    yaxis_label = {"fr": "Taille (cm)", "en": "Height (cm)"}
+    text_premiere = {"fr": "Premiere mesure", "en": "First measurement"}
+    text_vitesse = {"fr": "Vitesse", "en": "Velocity"}
+    text_taille = {"fr": "Taille", "en": "Height"}
 
     figure = go.Figure()
     if len(donnees) > 0:
@@ -382,21 +418,22 @@ def tracer_croissance(croissance, nom):
         for indice in range(len(donnees)):
             vitesse = donnees["vitesse_cm_an"].iloc[indice]
             if pd.isna(vitesse):
-                textes.append("Premiere mesure")
+                textes.append(text_premiere.get(lang, text_premiere["fr"]))
             else:
-                textes.append("Vitesse : " + str(round(float(vitesse), 1)) + " cm/an")
+                textes.append(text_vitesse.get(lang, "Vitesse") + " : "
+                              + str(round(float(vitesse), 1)) + " cm/an")
 
         figure.add_trace(go.Scatter(
             x=donnees["date"], y=donnees["taille_cm"],
             mode="lines+markers", text=textes,
             line=dict(color="#12303F", width=2),
-            hovertemplate="%{x|%d/%m/%Y}<br>Taille : %{y} cm<br>%{text}<extra></extra>",
+            hovertemplate="%{x|%d/%m/%Y}<br>" + text_taille.get(lang, "Taille") + " : %{y} cm<br>%{text}<extra></extra>",
         ))
 
     figure.update_layout(
         height=280, margin=dict(l=10, r=10, t=30, b=10),
-        yaxis=dict(title="Taille (cm)"),
-        title="Croissance",
+        yaxis=dict(title=yaxis_label.get(lang, yaxis_label["fr"])),
+        title=titre.get(lang, titre["fr"]),
         showlegend=False,
     )
     return figure
@@ -406,19 +443,35 @@ def tracer_croissance(croissance, nom):
 # AFFICHAGE DU CENTRE D'ALERTES
 # ------------------------------------------------------------
 
-def afficher_centre_alertes(donnees):
+def afficher_centre_alertes(depot):
     """Affiche les alertes construites par calculs.construire_toutes_alertes
-    (fusion ACWR + individualisees, deja triees par gravite)."""
+    (fusion ACWR + individualisees, deja triees par gravite).
+    Permet de marquer les alertes comme traitees avec une note."""
     toutes_alertes = construire_toutes_alertes(
-        donnees["seances"], donnees["bien_etre"], donnees["anthropometrie"]
+        depot.seances(), depot.bien_etre(), depot.anthropometrie()
     )
+
+    # Initialiser le suivi des alertes traitees
+    if "alertes_vues" not in st.session_state:
+        st.session_state["alertes_vues"] = {}
 
     if len(toutes_alertes) == 0:
         st.success(t("aucune_alerte"))
         return
 
-    st.subheader(t("centre_alertes", n=len(toutes_alertes)))
+    # Filtrer les alertes actives (non traitees)
+    alertes_actives = []
+    alertes_traitees = []
     for alerte in toutes_alertes:
+        cle = _cle_alerte(alerte)
+        if cle in st.session_state["alertes_vues"]:
+            alertes_traitees.append(alerte)
+        else:
+            alertes_actives.append(alerte)
+
+    st.subheader(t("centre_alertes", n=len(alertes_actives)))
+
+    for alerte in alertes_actives:
         module_tr, message_tr = traduire_alerte(alerte)
         texte = ("**" + alerte["nom"] + "** · " + module_tr
                  + " — " + message_tr)
@@ -427,15 +480,55 @@ def afficher_centre_alertes(donnees):
         else:
             st.warning(texte)
 
+        # Bouton marquer comme traitee avec note
+        with st.expander(t("marquer_alerte"), expanded=False):
+            note = st.text_input(
+                t("note_alerte"),
+                value=st.session_state["alertes_vues"].get(
+                    _cle_alerte(alerte), {}).get("note", ""),
+                key="note_" + _cle_alerte(alerte),
+                placeholder=t("note_alerte_placeholder"),
+            )
+            if st.button(t("marquer_alerte"), key="btn_" + _cle_alerte(alerte)):
+                st.session_state["alertes_vues"][_cle_alerte(alerte)] = {
+                    "timestamp": pd.Timestamp.now().strftime("%d/%m/%Y %H:%M"),
+                    "note": note,
+                    "nom": alerte["nom"],
+                    "module": module_tr,
+                    "message": message_tr,
+                    "niveau": alerte["niveau"],
+                }
+                st.rerun()
+
+    # Afficher les alertes traitees (grises, repliees)
+    if alertes_traitees:
+        with st.expander(t("alerte_traitee", n=len(alertes_traitees)), expanded=False):
+            for alerte in alertes_traitees:
+                cle = _cle_alerte(alerte)
+                info = st.session_state["alertes_vues"].get(cle, {})
+                st.markdown(
+                    "~~**" + alerte["nom"] + "** · "
+                    + info.get("module", "") + " — "
+                    + info.get("message", "") + "~~"
+                )
+                if info.get("note"):
+                    st.caption("📝 " + info["note"])
+                st.caption("✓ " + info.get("timestamp", ""))
+
+
+def _cle_alerte(alerte):
+    """Genere une cle unique pour une alerte."""
+    return alerte["nom"] + "_" + alerte["module"] + "_" + str(alerte.get("date", ""))
+
 
 # ------------------------------------------------------------
 # PAGE 1 — VUE D'EQUIPE
 # ------------------------------------------------------------
 
-def page_vue_equipe(donnees):
+def page_vue_equipe(depot):
     st.header(t("equipe_titre"))
 
-    df = donnees["seances"]
+    df = depot.seances()
     synthese, acwr_equipe = construire_synthese_equipe(df)
 
     colonne_a, colonne_b, colonne_c, colonne_d = st.columns(4)
@@ -447,8 +540,8 @@ def page_vue_equipe(donnees):
     colonne_a.metric(t("m_joueuses"), nb_joueuses)
     colonne_b.metric(t("m_seances"), nb_seances)
 
-    if donnees["bien_etre"] is not None:
-        matrice = bien_etre_du_jour(donnees["bien_etre"])
+    if depot.bien_etre() is not None:
+        matrice = bien_etre_du_jour(depot.bien_etre())
         hooper_moyen = matrice["Hooper"].mean()
         colonne_c.metric(t("m_hooper_jour"), round(hooper_moyen, 1))
     else:
@@ -459,16 +552,16 @@ def page_vue_equipe(donnees):
     else:
         colonne_d.metric(t("m_cmj_equipe"), "—")
 
-    afficher_centre_alertes(donnees)
+    afficher_centre_alertes(depot)
 
     # --- Tableau de synthese --------------------------------
-    st.subheader("Synthese par joueuse")
+    st.subheader(t("synthese_joueuse"))
 
     tableau = synthese.copy()
 
     # Ajouter le bien-etre du jour si disponible
-    if donnees["bien_etre"] is not None:
-        matrice = bien_etre_du_jour(donnees["bien_etre"])
+    if depot.bien_etre() is not None:
+        matrice = bien_etre_du_jour(depot.bien_etre())
         hooper_par_joueuse = {}
         for indice in range(len(matrice)):
             hooper_par_joueuse[matrice["Joueuse"].iloc[indice]] = matrice["Etat"].iloc[indice]
@@ -476,7 +569,7 @@ def page_vue_equipe(donnees):
         for indice in range(len(tableau)):
             nom = tableau["Joueuse"].iloc[indice]
             valeurs_bien_etre.append(hooper_par_joueuse.get(nom, "—"))
-        tableau["Bien-etre"] = valeurs_bien_etre
+        tableau[t("col_bien_etre")] = valeurs_bien_etre
 
     tableau["CMJ (cm)"] = tableau["CMJ (cm)"].round(1)
     tableau["Attaque (cm)"] = tableau["Attaque (cm)"].round(0)
@@ -485,17 +578,14 @@ def page_vue_equipe(donnees):
     st.dataframe(tableau, use_container_width=True, hide_index=True)
 
     # --- Disponibilite --------------------------------------
-    if donnees["blessures"] is not None:
-        st.subheader("Disponibilite")
-        disponibilite = calculer_disponibilite(donnees["blessures"], df)
+    if depot.blessures() is not None:
+        st.subheader(t("disponibilite"))
+        disponibilite = calculer_disponibilite(depot.blessures(), df)
         st.dataframe(disponibilite, use_container_width=True, hide_index=True)
-        st.caption(
-            "Jours d'absence recadres sur la periode des seances ; "
-            "les episodes qui se chevauchent ne sont comptes qu'une fois."
-        )
+        st.caption(t("dispo_note"))
 
     # --- Charge collective ----------------------------------
-    st.subheader("Charge hebdomadaire de l'equipe")
+    st.subheader(t("charge_hebdo_equipe"))
 
     donnees_charge = df.dropna(subset=["rpe", "duree_min"]).copy()
     donnees_charge["charge"] = donnees_charge["rpe"] * donnees_charge["duree_min"]
@@ -511,7 +601,7 @@ def page_vue_equipe(donnees):
     ))
     figure.update_layout(
         height=300, margin=dict(l=10, r=10, t=10, b=10),
-        yaxis=dict(title="Charge (unites arbitraires)"),
+        yaxis=dict(title=t("charge_ua")),
     )
     st.plotly_chart(figure, use_container_width=True)
 
@@ -520,28 +610,28 @@ def page_vue_equipe(donnees):
 # PAGE 2 — BIEN-ETRE DU JOUR
 # ------------------------------------------------------------
 
-def page_bien_etre(donnees):
+def page_bien_etre(depot):
     st.header(t("bien_etre_equipe"))
 
-    if donnees["bien_etre"] is None:
+    if depot.bien_etre() is None:
         st.info(t("bien_etre_vide"))
         return
 
-    matrice = bien_etre_du_jour(donnees["bien_etre"])
+    matrice = bien_etre_du_jour(depot.bien_etre())
 
     st.subheader(t("matrice_jour"))
     st.caption(t("matrice_caption"))
     st.dataframe(matrice, use_container_width=True, hide_index=True)
 
     st.subheader(t("evolution_individuelle"))
-    noms_disponibles = sorted(donnees["bien_etre"]["nom"].unique())
+    noms_disponibles = sorted(depot.bien_etre()["nom"].unique())
     nom = st.selectbox(t("joueuse"), noms_disponibles)
-    st.plotly_chart(tracer_hooper(donnees["bien_etre"], nom),
+    st.plotly_chart(tracer_hooper(depot.bien_etre(), nom, langue_courante()),
                     use_container_width=True)
 
     # Detail des 4 composantes sur les 14 derniers jours
     st.subheader(t("detail_14j"))
-    df = donnees["bien_etre"]
+    df = depot.bien_etre()
     donnees_joueuse = df[df["nom"] == nom].sort_values("date").tail(14)
     if len(donnees_joueuse) > 0:
         figure = go.Figure()
@@ -567,10 +657,10 @@ def page_bien_etre(donnees):
 # PAGE 3 — FICHE JOUEUSE
 # ------------------------------------------------------------
 
-def page_fiche_joueuse(donnees):
+def page_fiche_joueuse(depot):
     st.header(t("fiche_titre"))
 
-    df = donnees["seances"]
+    df = depot.seances()
     noms_disponibles = sorted(df["nom"].unique())
     nom = st.selectbox(t("choisir_joueuse"), noms_disponibles)
 
@@ -583,7 +673,7 @@ def page_fiche_joueuse(donnees):
     # bien-etre, disponibilite et alertes actives.
     acwr_equipe = calculer_acwr_equipe(df)
     toutes_alertes = construire_toutes_alertes(
-        df, donnees["bien_etre"], donnees["anthropometrie"]
+        df, depot.bien_etre(), depot.anthropometrie()
     )
     alertes_joueuse = []
     for alerte in toutes_alertes:
@@ -602,8 +692,8 @@ def page_fiche_joueuse(donnees):
         colonne_a.metric(t("m_acwr"), "—",
                          help=t("m_acwr_help_insuffisant"))
 
-    if donnees["bien_etre"] is not None:
-        df_hooper = calculer_hooper(donnees["bien_etre"])
+    if depot.bien_etre() is not None:
+        df_hooper = calculer_hooper(depot.bien_etre())
         reponses = df_hooper[df_hooper["nom"] == nom].sort_values("date")
         if len(reponses) > 0:
             hooper_jour = int(reponses["hooper"].iloc[-1])
@@ -616,8 +706,8 @@ def page_fiche_joueuse(donnees):
     else:
         colonne_b.metric(t("m_bien_etre_hooper"), "—")
 
-    if donnees["blessures"] is not None:
-        disponibilite = calculer_disponibilite(donnees["blessures"], df)
+    if depot.blessures() is not None:
+        disponibilite = calculer_disponibilite(depot.blessures(), df)
         ligne_dispo = disponibilite[disponibilite["Joueuse"] == nom]
         if len(ligne_dispo) > 0:
             colonne_c.metric(
@@ -700,6 +790,7 @@ def page_fiche_joueuse(donnees):
 
     with onglet_charge:
         donnees_acwr = acwr_equipe[acwr_equipe["nom"] == nom].dropna(subset=["acwr"])
+        lang = langue_courante()
 
         if len(donnees_acwr) == 0:
             st.info(t("acwr_insuffisant"))
@@ -708,61 +799,74 @@ def page_fiche_joueuse(donnees):
             etiquette, couleur, emoji = interpreter_acwr(acwr_actuel)
             st.markdown(emoji + " ACWR actuel : **"
                         + str(round(acwr_actuel, 2)) + "** — " + etiquette)
-            st.plotly_chart(tracer_acwr(acwr_equipe, nom),
+            st.plotly_chart(tracer_acwr(acwr_equipe, nom, lang),
                             use_container_width=True)
 
         monotonie = calculer_monotonie_contrainte(df)
-        st.plotly_chart(tracer_monotonie_contrainte(monotonie, nom),
+        st.plotly_chart(tracer_monotonie_contrainte(monotonie, nom, lang),
                         use_container_width=True)
 
         sauts_hebdo = calculer_sauts_hebdo(df)
         if len(sauts_hebdo[sauts_hebdo["nom"] == nom]) > 0:
-            st.plotly_chart(tracer_sauts(sauts_hebdo, nom),
+            st.plotly_chart(tracer_sauts(sauts_hebdo, nom, lang),
                             use_container_width=True)
         else:
             st.info(t("pas_sauts"))
 
     with onglet_bien_etre:
-        if donnees["bien_etre"] is None:
+        if depot.bien_etre() is None:
             st.info(t("aucun_bien_etre"))
         else:
-            df_be = donnees["bien_etre"]
+            df_be = depot.bien_etre()
             if len(df_be[df_be["nom"] == nom]) == 0:
                 st.info(t("pas_reponses_joueuse"))
             else:
-                st.plotly_chart(tracer_hooper(df_be, nom),
+                st.plotly_chart(tracer_hooper(df_be, nom, langue_courante()),
                                 use_container_width=True)
 
     with onglet_corps:
-        if donnees["anthropometrie"] is None:
+        if depot.anthropometrie() is None:
             st.info(t("aucune_anthro"))
         else:
-            croissance = calculer_croissance(donnees["anthropometrie"])
+            croissance = calculer_croissance(depot.anthropometrie())
             donnees_croissance = croissance[croissance["nom"] == nom]
             if len(donnees_croissance) == 0:
                 st.info(t("pas_mesures_joueuse"))
             else:
+                lang = langue_courante()
                 derniere_vitesse = donnees_croissance["vitesse_cm_an"].dropna()
                 if len(derniere_vitesse) > 0:
                     vitesse = float(derniere_vitesse.iloc[-1])
                     if vitesse > 7.0:
-                        st.warning(
-                            "Vitesse de croissance estimee : "
-                            + str(round(vitesse, 1))
-                            + " cm/an — pic de croissance probable. "
-                            + "Periode de vigilance : moduler charge et sauts."
-                        )
+                        if lang == "en":
+                            st.warning(
+                                "Estimated growth velocity: "
+                                + str(round(vitesse, 1))
+                                + " cm/yr — likely growth spurt. "
+                                + "Vigilance period: modulate load and jumps."
+                            )
+                        else:
+                            st.warning(
+                                "Vitesse de croissance estimee : "
+                                + str(round(vitesse, 1))
+                                + " cm/an — pic de croissance probable. "
+                                + "Periode de vigilance : moduler charge et sauts."
+                            )
                     else:
-                        st.markdown("Vitesse de croissance estimee : **"
-                                    + str(round(vitesse, 1)) + " cm/an**")
-                st.plotly_chart(tracer_croissance(croissance, nom),
+                        if lang == "en":
+                            st.markdown("Estimated growth velocity: **"
+                                        + str(round(vitesse, 1)) + " cm/yr**")
+                        else:
+                            st.markdown("Vitesse de croissance estimee : **"
+                                        + str(round(vitesse, 1)) + " cm/an**")
+                st.plotly_chart(tracer_croissance(croissance, nom, lang),
                                 use_container_width=True)
 
     with onglet_blessures:
-        if donnees["blessures"] is None:
+        if depot.blessures() is None:
             st.info(t("aucun_journal_blessures"))
         else:
-            episodes = donnees["blessures"][donnees["blessures"]["nom"] == nom]
+            episodes = depot.blessures()[depot.blessures()["nom"] == nom]
             if len(episodes) == 0:
                 st.success(t("aucun_episode_joueuse"))
             else:
@@ -782,10 +886,10 @@ def page_fiche_joueuse(donnees):
 # PAGE 4 — COMPARAISON
 # ------------------------------------------------------------
 
-def page_comparaison(donnees):
+def page_comparaison(depot):
     st.header(t("comparaison_titre"))
 
-    df = donnees["seances"]
+    df = depot.seances()
     noms_disponibles = sorted(df["nom"].unique())
     noms_choisis = st.multiselect(
         t("joueuses_comparer"), noms_disponibles,
@@ -797,7 +901,7 @@ def page_comparaison(donnees):
         return
 
     choix_test = st.selectbox(
-        "Indicateur", COLONNES_TESTS,
+        t("indicateur"), COLONNES_TESTS,
         format_func=LIBELLES_TESTS.get,
     )
 
@@ -832,11 +936,24 @@ def page_comparaison(donnees):
 # PAGE 5 — RAPPORTS PDF
 # ------------------------------------------------------------
 
-def page_rapports(donnees, nom_club):
+def page_rapports(depot, nom_club):
     st.header(t("rapports_titre"))
     st.write(t("rapports_intro"))
 
-    df = donnees["seances"]
+    # Upload du logo (optionnel)
+    logo_file = st.file_uploader(
+        t("logo_club"),
+        type=["png", "jpg", "jpeg"],
+        help=t("logo_club_help"),
+    )
+
+    # Stocker le logo en session pour qu'il persiste entre les reruns
+    if logo_file is not None:
+        st.session_state["logo_club"] = logo_file.getvalue()
+
+    logo_bytes = st.session_state.get("logo_club", None)
+
+    df = depot.seances()
     nom_fichier_club = nom_club.lower().strip().replace(" ", "_")
 
     colonne_gauche, colonne_droite = st.columns(2)
@@ -849,8 +966,10 @@ def page_rapports(donnees, nom_club):
         if st.button(t("generer_fiche"), type="primary"):
             with st.spinner(t("creation_pdf")):
                 st.session_state["pdf_joueuse"] = generer_rapport_joueuse(
-                    df, nom, nom_club, donnees["bien_etre"],
+                    df, nom, nom_club, depot.bien_etre(),
                     lang=langue_courante(),
+                    logo_bytes=logo_bytes,
+                    alertes_vues=st.session_state.get("alertes_vues"),
                 )
                 st.session_state["pdf_joueuse_nom"] = nom
 
@@ -873,6 +992,8 @@ def page_rapports(donnees, nom_club):
             with st.spinner(t("creation_pdf")):
                 st.session_state["pdf_equipe"] = generer_rapport_equipe(
                     df, nom_club, lang=langue_courante(),
+                    logo_bytes=logo_bytes,
+                    alertes_vues=st.session_state.get("alertes_vues"),
                 )
 
         if st.session_state.get("pdf_equipe") is not None:
@@ -889,10 +1010,14 @@ def page_rapports(donnees, nom_club):
 # ------------------------------------------------------------
 
 def page_methode():
-    st.header("Methode et references")
+    lang = langue_courante()
 
-    st.markdown(
-        """
+    titre = {"fr": "Methode et references", "en": "Method and references"}
+    st.header(titre.get(lang, titre["fr"]))
+
+    if lang == "fr":
+        st.markdown(
+            """
 **1. Charge d'entrainement — methode seance-RPE (Foster, 2001)**
 
 Chaque seance recoit une charge : `RPE (1-10) x duree en minutes`.
@@ -952,8 +1077,129 @@ interpretes avec prudence chez les jeunes athletes.
 Gabbett (2016) · Impellizzeri et al. (2019, 2020 — critique de l'ACWR) ·
 Lloyd & Oliver (2012) · Bahr & Visnes (tendinopathie rotulienne et
 charge de sauts).
-        """
-    )
+            """
+        )
+    else:
+        st.markdown(
+            """
+**1. Training load — session-RPE method (Foster, 2001)**
+
+Each session receives a load: `RPE (1-10) x duration in minutes`.
+No sensors needed, only the perceived effort.
+
+**2. ACWR — Acute:Chronic Workload Ratio**
+
+Last 7 days' load divided by the weekly average of the last 28 days
+(coupled rolling averages). The **0.80 - 1.30** zone is a descriptive
+reference from the original literature (Gabbett, 2016), but the
+individual predictive value of ACWR is now contested (Impellizzeri et
+al., 2020). Here, ACWR is read as a **signal of unusual load variation**
+that directs the coach's attention — not as an injury prediction.
+
+**3. Monotony and strain (Foster)**
+
+- Monotony = mean daily load / standard deviation (7 days).
+  Above **2.0**: training too uniform, even at moderate load.
+- Strain = weekly load x monotony. Assessed against each player's
+  personal history (Z-score).
+
+**4. Well-being — Hooper questionnaire (Hooper & Mackinnon, 1995)**
+
+Each morning: sleep, fatigue, soreness and stress rated from
+1 (very good) to 7 (very bad). Index = sum (4 to 28).
+The thresholds shown (13 / 19) are indicative: the main reference
+is each player's deviation from their own norm.
+
+**5. Jump load**
+
+Weekly jump volume, the volleyball-specific indicator (patellar
+tendinopathy prevention). An increase of more than 50% compared to the
+player's 4-week personal average triggers a watch.
+
+**6. Growth**
+
+Estimated velocity between measurements spaced at least 60 days apart.
+Above approximately **7 cm/yr**: likely growth spurt, increased
+vulnerability period (Lloyd & Oliver, 2012) — modulate load and jumps.
+
+**7. Individualized alerts (Z-scores)**
+
+Each player is compared to **her own baseline** rather than universal
+thresholds: `Z = (value - personal mean) / standard deviation`.
+Z above +1.5 triggers a watch, above +2.5 triggers an alert.
+
+---
+
+**Limitations.** These indicators guide the coach's attention;
+they do not replace staff judgment or medical advice. The thresholds
+come from studies on varied populations and should be interpreted
+carefully with young athletes.
+
+**References.** Foster et al. (2001) · Hooper & Mackinnon (1995) ·
+Gabbett (2016) · Impellizzeri et al. (2019, 2020 — ACWR critique) ·
+Lloyd & Oliver (2012) · Bahr & Visnes (patellar tendinopathy and
+jump load).
+            """
+        )
+
+
+# ------------------------------------------------------------
+# PAGE — ONBOARDING / EMPTY STATE
+# ------------------------------------------------------------
+
+def afficher_onboarding():
+    """Ecran d'accueil quand aucune donnee n'est chargee."""
+    st.title(t("onboarding_bienvenue"))
+    st.markdown(t("onboarding_intro"))
+    st.divider()
+
+    colonne_gauche, colonne_droite = st.columns(2)
+
+    with colonne_gauche:
+        st.subheader(t("onboarding_demo_titre"))
+        st.write(t("onboarding_demo_desc"))
+        if st.button(t("onboarding_charger_demo"), type="primary", use_container_width=True):
+            st.query_params["demo"] = "true"
+            st.rerun()
+
+    with colonne_droite:
+        st.subheader(t("onboarding_importer_titre"))
+        st.write(t("onboarding_importer_desc"))
+
+    st.divider()
+    st.subheader(t("onboarding_guide_titre"))
+    st.markdown(t("onboarding_guide_etape1"))
+    st.markdown(t("onboarding_guide_etape2"))
+    st.markdown(t("onboarding_guide_etape3"))
+
+    st.divider()
+    st.subheader(t("modeles_expander"))
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.download_button(
+            t("modele_seances"), data=generer_modele_csv(),
+            file_name="modele_seances.csv", mime="text/csv",
+            use_container_width=True,
+        )
+    with col2:
+        st.download_button(
+            t("modele_bien_etre"), data=generer_modele_bien_etre(),
+            file_name="modele_bien_etre.csv", mime="text/csv",
+            use_container_width=True,
+        )
+    with col3:
+        st.download_button(
+            t("modele_anthro"), data=generer_modele_anthropometrie(),
+            file_name="modele_anthropometrie.csv", mime="text/csv",
+            use_container_width=True,
+        )
+    with col4:
+        st.download_button(
+            t("modele_blessures"), data=generer_modele_blessures(),
+            file_name="modele_blessures.csv", mime="text/csv",
+            use_container_width=True,
+        )
 
 
 # ------------------------------------------------------------
@@ -1082,23 +1328,33 @@ def principal():
     donnees, page, nom_club, mode_demo = obtenir_donnees()
     depot = DepotDonnees_session(donnees)
 
+    # Afficher l'onboarding si aucune seance n'est chargee ET
+    # pas en mode auto-demo (sinon l'onboarding eclipse les donnees demo)
+    params = st.query_params
+    auto_demo = params.get("demo", "false").lower() == "true"
+
+    if depot.seances() is None or len(depot.seances()) == 0:
+        if not auto_demo:
+            afficher_onboarding()
+            return
+
     if mode_demo:
         st.info(
             t("banniere_demo")
         )
 
     if page == "Vue d'equipe":
-        page_vue_equipe(donnees)
+        page_vue_equipe(depot)
     elif page == "Fiche joueuse":
-        page_fiche_joueuse(donnees)
+        page_fiche_joueuse(depot)
     elif page == "Saisie rapide":
         page_saisie_rapide(depot, mode_demo, nom_club)
     elif page == "Bien-etre":
-        page_bien_etre(donnees)
+        page_bien_etre(depot)
     elif page == "Comparaison":
-        page_comparaison(donnees)
+        page_comparaison(depot)
     elif page == "Rapports PDF":
-        page_rapports(donnees, nom_club)
+        page_rapports(depot, nom_club)
     else:
         page_methode()
 

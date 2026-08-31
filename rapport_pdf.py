@@ -34,6 +34,9 @@ COULEUR_PRINCIPALE = colors.HexColor("#12303F")
 COULEUR_ACCENT = colors.HexColor("#FFFFFF")
 COULEUR_GRIS = colors.HexColor("#5F6368")
 
+# DPI upgrade for better quality
+DPI_CHARE = 200
+
 
 # ------------------------------------------------------------
 # TEXTES BILINGUES DES RAPPORTS (FR / EN)
@@ -108,6 +111,10 @@ PDF_TEXTES = {
               "Usual reference zone: 0.80 - 1.30. ACWR is a descriptive "
               "monitoring signal, not an individual injury predictor "
               "(Impellizzeri et al., 2020)."},
+    "historique_alertes": {"fr": "Historique des alertes (cette session)",
+                           "en": "Alert history (this session)"},
+    "note_alerte": {"fr": "Note", "en": "Note"},
+    "alerte_reconnue": {"fr": "Reconnue", "en": "Acknowledged"},
 }
 
 
@@ -169,7 +176,7 @@ def creer_styles():
 def figure_vers_image(figure, largeur_cm):
     """Convertit une figure matplotlib en Image reportlab."""
     tampon = io.BytesIO()
-    figure.savefig(tampon, format="png", dpi=150, bbox_inches="tight")
+    figure.savefig(tampon, format="png", dpi=DPI_CHARE, bbox_inches="tight")
     plt.close(figure)
     tampon.seek(0)
 
@@ -178,6 +185,130 @@ def figure_vers_image(figure, largeur_cm):
     ratio = figure.get_figheight() / figure.get_figwidth()
     hauteur_points = largeur_points * ratio
     return Image(tampon, width=largeur_points, height=hauteur_points)
+
+
+def creer_header(nom_club, titre_rapport, logo_bytes=None):
+    """Cree un tableau d'en-tete avec logo (optionnel) et titre."""
+    elements = []
+
+    if logo_bytes:
+        try:
+            logo_image = Image(io.BytesIO(logo_bytes))
+            # Redimensionner le logo (max 3cm de hauteur)
+            logo_image.drawHeight = 3 * cm
+            logo_image.drawWidth = 3 * cm * (logo_image.imageWidth / logo_image.imageHeight)
+        except Exception:
+            logo_image = Paragraph("", getSampleStyleSheet()["Normal"])
+    else:
+        logo_image = Paragraph("", getSampleStyleSheet()["Normal"])
+
+    # Styles pour l'en-tete
+    base = getSampleStyleSheet()
+    titre_style = ParagraphStyle(
+        "TitreHeader", parent=base["Title"],
+        fontSize=16, textColor=COULEUR_PRINCIPALE, spaceAfter=2,
+        alignment=2,  # alignement a droite
+    )
+    sous_titre_style = ParagraphStyle(
+        "SousTitreHeader", parent=base["Normal"],
+        fontSize=10, textColor=COULEUR_GRIS, spaceAfter=0,
+        alignment=2,
+    )
+
+    date_str = pd.Timestamp.today().strftime("%d/%m/%Y")
+
+    header_data = [[
+        logo_image,
+        Paragraph(titre_rapport, titre_style),
+    ]]
+    if nom_club:
+        header_data[0].append(Paragraph(nom_club + " — " + date_str, sous_titre_style))
+    else:
+        header_data[0].append(Paragraph(date_str, sous_titre_style))
+
+    # On utilise 3 colonnes pour l'en-tete
+    header_table = Table(header_data, colWidths=[4 * cm, 10 * cm, 4 * cm])
+    header_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (0, 0), "LEFT"),
+        ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LINEBELOW", (0, 0), (-1, -1), 1.5, COULEUR_PRINCIPALE),
+    ]))
+    return header_table
+
+
+def creer_footer(nom_club, page_number, total_pages, lang="fr"):
+    """Cree un pied de page avec nom club, date, URL et numero de page."""
+    base = getSampleStyleSheet()
+    footer_style = ParagraphStyle(
+        "FooterStyle", parent=base["Normal"],
+        fontSize=8, textColor=COULEUR_GRIS,
+    )
+
+    date_str = pd.Timestamp.today().strftime("%d/%m/%Y")
+    url = "club-monitoring.streamlit.app"
+
+    if lang == "en":
+        page_text = f"Page {page_number} of {total_pages}"
+    else:
+        page_text = f"Page {page_number} / {total_pages}"
+
+    if nom_club:
+        left_text = f"{nom_club} — {date_str}"
+    else:
+        left_text = date_str
+
+    footer_data = [[
+        Paragraph(left_text, footer_style),
+        Paragraph(page_text, footer_style),
+        Paragraph(url, footer_style),
+    ]]
+
+    footer_table = Table(footer_data, colWidths=[7 * cm, 5 * cm, 7 * cm])
+    footer_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (0, 0), "LEFT"),
+        ("ALIGN", (1, 0), (1, 0), "CENTER"),
+        ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("LINEABOVE", (0, 0), (-1, -1), 0.5, COULEUR_GRIS),
+    ]))
+    return footer_table
+
+
+class PDFDocument(SimpleDocTemplate):
+    """SimpleDocTemplate etendu avec header/footer automatiques."""
+
+    def __init__(self, *args, header_builder=None, footer_builder=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.header_builder = header_builder
+        self.footer_builder = footer_builder
+
+    def build(self, flowables, onFirstPage=None, onLaterPages=None, canvasmaker=None):
+        if self.header_builder or self.footer_builder:
+            def page_template(canvas, doc):
+                canvas.saveState()
+                # Footer
+                if self.footer_builder:
+                    # On a besoin de connaitre le numero de page total
+                    # Pour simplifier, on utilise le numero de page courant
+                    page_num = doc.page
+                    # On ne peut pas connaitre total_pages facilement sans 2 passes
+                    footer = self.footer_builder(nom_club=doc.nom_club, page_number=page_num, total_pages=1, lang=doc.lang)
+                    footer.wrapOn(canvas, self.width, self.bottomMargin)
+                    footer.drawOn(canvas, self.leftMargin, 0.5 * cm)
+
+                # Header
+                if self.header_builder:
+                    header = self.header_builder(nom_club=doc.nom_club, titre_rapport=doc.titre_rapport, logo_bytes=doc.logo_bytes)
+                    header.wrapOn(canvas, self.width, self.topMargin)
+                    header.drawOn(canvas, self.leftMargin, self.pagesize[1] - self.topMargin + 0.5 * cm)
+                canvas.restoreState()
+
+            super().build(flowables, onFirstPage=page_template, onLaterPages=page_template, canvasmaker=canvasmaker)
+        else:
+            super().build(flowables, onFirstPage=onFirstPage, onLaterPages=onLaterPages, canvasmaker=canvasmaker)
 
 
 # ------------------------------------------------------------
@@ -250,14 +381,22 @@ def graphique_acwr(acwr_equipe, nom):
 # 3. RAPPORT INDIVIDUEL (fiche joueuse)
 # ------------------------------------------------------------
 
-def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None, lang="fr"):
+def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None, lang="fr", logo_bytes=None, alertes_vues=None):
     """Construit le PDF de la fiche joueuse. Retourne les octets du PDF."""
     tampon = io.BytesIO()
-    document = SimpleDocTemplate(
+    document = PDFDocument(
         tampon, pagesize=A4,
         topMargin=1.5 * cm, bottomMargin=1.5 * cm,
         leftMargin=1.8 * cm, rightMargin=1.8 * cm,
+        header_builder=creer_header,
+        footer_builder=creer_footer,
     )
+    # Stocker des metadonnees pour le template
+    document.nom_club = nom_club
+    document.titre_rapport = pt("fiche_suivi", lang)
+    document.logo_bytes = logo_bytes
+    document.lang = lang
+
     titre, sous_titre, section, normal = creer_styles()
 
     donnees_joueuse = df[df["nom"] == nom]
@@ -266,6 +405,7 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None, lang="f
     date_max = donnees_joueuse["date"].max().strftime("%d/%m/%Y")
 
     elements = []
+    # Titre de section (l'en-tete est ajoute automatiquement)
     elements.append(Paragraph(pt("fiche_suivi", lang) + " — " + nom, titre))
     elements.append(Paragraph(
         pt("poste", lang) + " : " + poste + "   |   "
@@ -375,20 +515,29 @@ def generer_rapport_joueuse(df, nom, nom_club="CLUB", df_bien_etre=None, lang="f
 # 4. RAPPORT DE SYNTHESE EQUIPE
 # ------------------------------------------------------------
 
-def generer_rapport_equipe(df, nom_club="CLUB", lang="fr"):
+def generer_rapport_equipe(df, nom_club="CLUB", lang="fr", logo_bytes=None, alertes_vues=None):
     """Construit le PDF de synthese de l'equipe. Retourne les octets."""
     tampon = io.BytesIO()
-    document = SimpleDocTemplate(
+    document = PDFDocument(
         tampon, pagesize=A4,
         topMargin=1.5 * cm, bottomMargin=1.5 * cm,
         leftMargin=1.8 * cm, rightMargin=1.8 * cm,
+        header_builder=creer_header,
+        footer_builder=creer_footer,
     )
+    # Stocker des metadonnees pour le template
+    document.nom_club = nom_club
+    document.titre_rapport = pt("rapport_equipe", lang)
+    document.logo_bytes = logo_bytes
+    document.lang = lang
+
     titre, sous_titre, section, normal = creer_styles()
 
     date_min = df["date"].min().strftime("%d/%m/%Y")
     date_max = df["date"].max().strftime("%d/%m/%Y")
 
     elements = []
+    # Titre de section (l'en-tete est ajoute automatiquement)
     elements.append(Paragraph(pt("rapport_equipe", lang) + " — " + nom_club, titre))
     elements.append(Paragraph(
         pt("periode", lang) + " : " + date_min + " → " + date_max
@@ -480,6 +629,33 @@ def generer_rapport_equipe(df, nom_club="CLUB", lang="fr"):
     elements.append(Paragraph(
         pt("methode_texte", lang), normal,
     ))
+
+    # --- Historique des alertes (si disponible) -----------------
+    if alertes_vues is not None and len(alertes_vues) > 0:
+        elements.append(Paragraph(pt("historique_alertes", lang), section))
+        lignes_alertes = [[
+            pt("col_joueuse", lang), pt("col_statut", lang),
+            pt("col_date", lang), pt("note_alerte", lang),
+        ]]
+        for cle, info in alertes_vues.items():
+            lignes_alertes.append([
+                str(info.get("nom", "")),
+                pt("alerte_reconnue", lang),
+                str(info.get("timestamp", "")),
+                str(info.get("note", "")),
+            ])
+
+        tableau_alertes = Table(lignes_alertes, colWidths=[3.5 * cm, 3 * cm, 3.5 * cm, 5.5 * cm])
+        tableau_alertes.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), COULEUR_PRINCIPALE),
+            ("TEXTCOLOR", (0, 0), (-1, 0), COULEUR_ACCENT),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#DADCE0")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F7F7F7")]),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        elements.append(tableau_alertes)
 
     document.build(elements)
     tampon.seek(0)

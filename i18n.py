@@ -337,6 +337,12 @@ TEXTES = {
               "parents ou la direction du club.",
         "en": "Generate a report ready to share with staff, parents or "
               "club management."},
+    "logo_club": {"fr": "Logo du club (optionnel)", "en": "Club logo (optional)"},
+    "logo_club_help": {
+        "fr": "Image PNG ou JPG, max 2 Mo. Le logo apparaitra en haut de "
+              "chaque rapport PDF.",
+        "en": "PNG or JPG image, max 2 MB. The logo will appear at the top "
+              "of each PDF report."},
     "fiche_individuelle": {"fr": "Fiche individuelle",
                            "en": "Individual sheet"},
     "generer_fiche": {"fr": "Generer la fiche", "en": "Generate sheet"},
@@ -347,6 +353,104 @@ TEXTES = {
     "synthese_equipe": {"fr": "Synthese d'equipe", "en": "Team summary"},
     "synthese_equipe_desc": {
         "fr": "Tableau complet + alertes de charge, sur une page.",
+        "en": "Full table + load alerts, on one page."},
+    "generer_synthese": {"fr": "Generer la synthese",
+                         "en": "Generate summary"},
+    "telecharger_synthese": {"fr": "📄 Telecharger la synthese d'equipe",
+                             "en": "📄 Download team summary"},
+
+    # --- Validation errors (actionable, row/column/range) ---
+    "val_colonne_manquante": {
+        "fr": "Colonne obligatoire manquante : « {colonne} »",
+        "en": "Required column missing: \"{colonne}\""},
+    "val_ligne_indispo": {
+        "fr": "Ligne {ligne} : colonne « {colonne} » vide ou illisible.",
+        "en": "Row {ligne}: column \"{colonne}\" empty or unreadable."},
+    "val_rpe_hors_echelle": {
+        "fr": "Ligne {ligne} — colonne « RPE » : valeur {valeur} hors de l'echelle [1-10].",
+        "en": "Row {ligne} — column \"RPE\": value {valeur} outside the valid range [1-10]."},
+    "val_duree_nulle": {
+        "fr": "Ligne {ligne} — colonne « duree_min » : valeur {valeur} doit etre > 0.",
+        "en": "Row {ligne} — column \"duree_min\": value {valeur} must be greater than 0."},
+    "val_sauts_negatif": {
+        "fr": "Ligne {ligne} — colonne « sauts » : valeur {valeur} ne peut pas etre negative.",
+        "en": "Row {ligne} — column \"sauts\": value {valeur} cannot be negative."},
+    "val_date_invalide": {
+        "fr": "Ligne {ligne} — colonne « date » : {valeur} n'est pas une date valide (AAAA-MM-JJ).",
+        "en": "Row {ligne} — column \"date\": {valeur} is not a valid date (YYYY-MM-DD)."},
+    "val_nom_vide": {
+        "fr": "Ligne {ligne} — colonne « nom » : nom de joueuse vide ou manquant.",
+        "en": "Row {ligne} — column \"name\": player name empty or missing."},
+    "val_poste_invalide": {
+        "fr": "Ligne {ligne} — colonne « poste » : « {valeur} » n'est pas un poste valide. "
+              "Postes valides : {postes_valides}.",
+        "en": "Row {ligne} — column \"position\": \"{valeur}\" is not a valid position. "
+              "Valid positions: {postes_valides}."},
+    "val_fichier_illisible": {
+        "fr": "Fichier illisible : {erreur}",
+        "en": "Unreadable file: {erreur}"},
+    "val_aucune_ligne": {
+        "fr": "Aucune ligne exploitable apres nettoyage.",
+        "en": "No usable rows after cleaning."},
+    "val_hooper_hors_echelle": {
+        "fr": "Ligne {ligne} — colonne « {colonne} » : valeur {valeur} hors de l'echelle [1-7].",
+        "en": "Row {ligne} — column \"{colonne}\": value {valeur} outside the valid range [1-7]."},
+
+    # --- Alert acknowledgment ---
+    "marquer_alerte": {"fr": "Marquer comme traitee", "en": "Mark as handled"},
+    "note_alerte": {"fr": "Note (optionnelle)", "en": "Note (optional)"},
+    "note_alerte_placeholder": {"fr": "Ajouter une note pour le suivi",
+                                "en": "Add a note for follow-up"},
+    "alerte_traitee": {"fr": "{n} alerte(s) traitee(s)", "en": "{n} handled alert(s)"},
+    "aucune_alerte_traitee": {"fr": "Aucune alerte active.",
+                              "en": "No active alerts."},
+    "historique_alertes": {"fr": "Historique des alertes (cette session)",
+                           "en": "Alert history (this session)"},
+    "alerte_non_reconnue": {"fr": "Non reconnue", "en": "Unacknowledged"},
+    "alerte_reconnue": {"fr": "Reconnue", "en": "Acknowledged"},
+
+    # --- Onboarding / Empty state ---
+    "onboarding_bienvenue": {"fr": "Bienvenue sur Clubs Monitoring",
+                             "en": "Welcome to Clubs Monitoring"},
+    "onboarding_intro": {
+        "fr": "Systeme complet de monitoring physique pour le volleyball : "
+              "charge d'entrainement, bien-etre, sauts, croissance et "
+              "alertes individualisees.",
+        "en": "Complete physical monitoring system for volleyball: training "
+              "load, well-being, jumps, growth and individualized alerts."},
+    "onboarding_demo_titre": {"fr": "1. Essayez avec les donnees de demo",
+                              "en": "1. Try with demo data"},
+    "onboarding_demo_desc": {
+        "fr": "Explorez toutes les fonctionnalites avec une equipe "
+              "fictive complete.",
+        "en": "Explore all features with a complete fictional team."},
+    "onboarding_charger_demo": {"fr": "Charger les donnees de demo",
+                                "en": "Load demo data"},
+    "onboarding_importer_titre": {"fr": "2. Ou importez vos donnees",
+                                  "en": "2. Or import your data"},
+    "onboarding_importer_desc": {
+        "fr": "Telechargez les modeles CSV ci-dessous, remplissez-les "
+              "avec vos seances, puis importez-les via la barre laterale.",
+        "en": "Download the CSV templates below, fill them with your "
+              "sessions, then import them via the sidebar."},
+    "onboarding_guide_titre": {"fr": "Comment ca marche",
+                               "en": "How it works"},
+    "onboarding_guide_etape1": {
+        "fr": "**Etape 1** : Telechargez et remplissez les modeles CSV",
+        "en": "**Step 1**: Download and fill the CSV templates"},
+    "onboarding_guide_etape2": {
+        "fr": "**Etape 2** : Importez vos fichiers via la barre laterale",
+        "en": "**Step 2**: Import your files via the sidebar"},
+    "onboarding_guide_etape3": {
+        "fr": "**Etape 3** : Explorez les alertes, fiches joueuses et "
+              "rapports PDF",
+        "en": "**Step 3**: Explore alerts, player profiles and PDF reports"},
+
+    # --- URL params / auto-load ---
+    "demo_auto_chargee": {
+        "fr": "Donnees de demonstration chargees automatiquement.",
+        "en": "Demo data loaded automatically."},
+
         "en": "Full table + load alerts, on one page."},
     "generer_synthese": {"fr": "Generer la synthese",
                          "en": "Generate summary"},

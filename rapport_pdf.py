@@ -305,9 +305,9 @@ class PDFDocument(SimpleDocTemplate):
                     header.drawOn(canvas, self.leftMargin, self.pagesize[1] - self.topMargin + 0.5 * cm)
                 canvas.restoreState()
 
-            super().build(flowables, onFirstPage=page_template, onLaterPages=page_template, canvasmaker=canvasmaker)
+            super().build(flowables, onFirstPage=page_template, onLaterPages=page_template)
         else:
-            super().build(flowables, onFirstPage=onFirstPage, onLaterPages=onLaterPages, canvasmaker=canvasmaker)
+            super().build(flowables, onFirstPage=onFirstPage, onLaterPages=onLaterPages)
 
 
 # ------------------------------------------------------------

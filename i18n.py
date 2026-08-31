@@ -447,18 +447,9 @@ TEXTES = {
         "en": "**Step 3**: Explore alerts, player profiles and PDF reports"},
 
     # --- URL params / auto-load ---
-    # --- URL params / auto-load ---
     "demo_auto_chargee": {
         "fr": "Donnees de demonstration chargees automatiquement.",
         "en": "Demo data loaded automatically."},
-
-    "generer_synthese": {
-        "fr": "Generer la synthese",
-        "en": "Generate summary"},
-
-    "telecharger_synthese": {
-        "fr": "📄 Telecharger la synthese d'equipe",
-        "en": "📄 Download team summary"},
 }
 
 

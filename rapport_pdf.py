@@ -189,7 +189,6 @@ def figure_vers_image(figure, largeur_cm):
 
 def creer_header(nom_club, titre_rapport, logo_bytes=None):
     """Cree un tableau d'en-tete avec logo (optionnel) et titre."""
-    elements = []
 
     if logo_bytes:
         try:
